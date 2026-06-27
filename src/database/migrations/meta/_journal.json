@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1782480312296,
+      "tag": "0000_peaceful_vanisher",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782480400000,
+      "tag": "0001_vector_and_gin_indexes",
+      "breakpoints": true
+    }
+  ]
+}
