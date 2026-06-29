@@ -1,25 +1,34 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EmbeddingProvider } from './embedding.provider.interface';
+import { LLM_CLIENT_TOKEN, LlmClient } from '../../../common/llm/llm-client.interface';
 
 @Injectable()
 export class OpenAIEmbeddingProvider implements EmbeddingProvider {
-  private readonly logger = new Logger(OpenAIEmbeddingProvider.name);
+  constructor(
+    @Inject(LLM_CLIENT_TOKEN) private readonly llmClient: LlmClient,
+    private readonly config: ConfigService,
+  ) {}
 
   modelName(): string {
-    return 'text-embedding-3-small';
+    return this.config.get<string>('EMBEDDING_MODEL') ?? 'text-embedding-3-small';
   }
 
   dimensions(): number {
     return 1536;
   }
 
-  async embed(_text: string): Promise<number[]> {
-    // TODO: implement with openai SDK when EMBEDDING_PROVIDER=openai
-    this.logger.warn('OpenAI embedding not configured, falling back to mock');
-    throw new Error('OpenAI embedding provider not implemented in this prototype');
+  async embed(text: string): Promise<number[]> {
+    const result = await this.llmClient.createEmbeddings(text, this.modelName());
+    return result.embeddings[0] ?? [];
   }
 
   async embedBatch(texts: string[]): Promise<number[][]> {
-    return Promise.all(texts.map((t) => this.embed(t)));
+    if (texts.length === 0) {
+      return [];
+    }
+
+    const result = await this.llmClient.createEmbeddings(texts, this.modelName());
+    return result.embeddings;
   }
 }

@@ -13,6 +13,9 @@ const configSchema = z.object({
 
   LLM_PROVIDER: z.enum(['mock', 'openai']).default('mock'),
   OPENAI_API_KEY: z.string().optional(),
+  OPENAI_BASE_URL: z.string().url().default('https://api.aitunnel.ru/v1/'),
+  LLM_MODEL: z.string().default('gpt-4o-mini'),
+  LLM_MAX_TOKENS: z.coerce.number().default(1500),
 
   EMBEDDING_PROVIDER: z.enum(['mock', 'openai']).default('mock'),
   EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
@@ -37,7 +40,18 @@ export function validateConfig(config: Record<string, unknown>): AppConfig {
     const errors = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
     throw new Error(`Configuration validation error: ${errors}`);
   }
-  return result.data;
+
+  const data = result.data;
+  if (data.LLM_PROVIDER === 'openai' && !data.OPENAI_API_KEY) {
+    throw new Error('Configuration validation error: OPENAI_API_KEY is required when LLM_PROVIDER=openai');
+  }
+  if (data.EMBEDDING_PROVIDER === 'openai' && !data.OPENAI_API_KEY) {
+    throw new Error(
+      'Configuration validation error: OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai',
+    );
+  }
+
+  return data;
 }
 
 export default (): AppConfig => {

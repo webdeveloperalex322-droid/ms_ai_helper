@@ -1,0 +1,14 @@
+node_modules
+.git
+.env
+.env.test
+.env.local
+*.log
+coverage
+.cursor
+.specify
+specs
+docs
+test
+docker-compose.test.yml
+README.md

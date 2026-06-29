@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import configuration from './config/configuration';
 import { DatabaseModule } from './database/database.module';
+import { LlmModule } from './common/llm/llm.module';
 import { HealthController } from './healthcheck/health.controller';
 import { CatalogImportModule } from './modules/catalog-import/catalog-import.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
@@ -19,6 +20,7 @@ import { AdminConfigModule } from './modules/admin-config/admin-config.module';
       envFilePath: process.env.NODE_ENV === 'test' ? '.env.test' : '.env',
     }),
     DatabaseModule,
+    LlmModule,
     CatalogImportModule,
     CatalogModule,
     RagModule,

@@ -1,0 +1,71 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ai_assistant_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-assistant}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-assistant}
+      POSTGRES_DB: ${DB_NAME:-ai_assistant}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-assistant} -d ${DB_NAME:-ai_assistant}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai_assistant_app
+    restart: unless-stopped
+    env_file: .env.prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+      - web
+
+  nginx:
+    image: nginx:alpine
+    container_name: ai_assistant_nginx
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot_www:/var/www/certbot:ro
+      - certbot_certs:/etc/letsencrypt:ro
+    depends_on:
+      - app
+    networks:
+      - web
+
+  certbot:
+    image: certbot/certbot
+    container_name: ai_assistant_certbot
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_certs:/etc/letsencrypt
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;"
+
+volumes:
+  postgres_data:
+  certbot_www:
+  certbot_certs:
+
+networks:
+  internal:
+    driver: bridge
+  web:
+    driver: bridge
