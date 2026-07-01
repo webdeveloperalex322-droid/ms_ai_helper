@@ -30,6 +30,10 @@ const configSchema = z.object({
   HIDE_EMPTY_SUGGESTIONS: z.coerce.boolean().default(true),
 
   INTERNAL_API_KEY: z.string().default('dev-internal-key-change-in-prod'),
+
+  ADMIN_USER: z.string().email().optional().default('admin@example.com'),
+  ADMIN_PASSWORD: z.string().min(8).optional().default('changeme123'),
+  ADMIN_COOKIE_SECRET: z.string().min(32).optional().default('dev-cookie-secret-replace-in-prod-!!!'),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

@@ -1,0 +1,42 @@
+export function productsResource(db: any) {
+  return {
+    resource: db.table('products'),
+    options: {
+      navigation: { name: 'Каталог', icon: 'Store' },
+      actions: {
+        new: { isAccessible: false },
+        delete: { isAccessible: false },
+      },
+      listProperties: ['name', 'category_name', 'rn', 'updated_at'],
+      filterProperties: ['name', 'category_name', 'rn'],
+      showProperties: [
+        'id', 'rn', 'external_product_id', 'name', 'category_name',
+        'description', 'ingredients', 'allergens', 'tags',
+        'weight', 'pieces', 'calories', 'protein', 'fat', 'carbs',
+        'image_url', 'created_at', 'updated_at',
+      ],
+      editProperties: ['name', 'description', 'ingredients', 'allergens', 'tags'],
+      properties: {
+        id: { label: 'ID' },
+        rn: { label: 'Торговая сеть (rn)' },
+        external_product_id: { label: 'Внешний ID' },
+        name: { label: 'Название' },
+        category_name: { label: 'Категория' },
+        description: { label: 'Описание' },
+        ingredients: { label: 'Состав', type: 'textarea' },
+        allergens: { label: 'Аллергены', type: 'textarea' },
+        tags: { label: 'Теги', type: 'textarea' },
+        weight: { label: 'Вес (г)' },
+        pieces: { label: 'Кол-во штук' },
+        calories: { label: 'Калории' },
+        protein: { label: 'Белки' },
+        fat: { label: 'Жиры' },
+        carbs: { label: 'Углеводы' },
+        image_url: { label: 'URL изображения' },
+        raw_payload: { isVisible: { list: false, show: false, edit: false, filter: false } },
+        created_at: { label: 'Создан' },
+        updated_at: { label: 'Обновлён' },
+      },
+    },
+  };
+}

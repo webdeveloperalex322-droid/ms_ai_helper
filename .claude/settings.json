@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "TodoWrite",
+      "WebFetch",
+      "WebSearch"
+    ],
+    "defaultMode": "acceptEdits"
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"SPEC-KIT METHODOLOGY (this project uses GitHub Spec-Kit; see .specify/). For any feature, change, or non-trivial bugfix, DO NOT jump straight to code. Route work through the phased speckit flow in order: /speckit-specify -> /speckit-clarify -> /speckit-plan -> /speckit-tasks -> /speckit-analyze -> /speckit-implement. Specs live in specs/<NNN-short-name>/. Trivial questions or read-only lookups may skip the flow.\"}}'",
+            "timeout": 5,
+            "statusMessage": "Loading spec-kit methodology..."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,42 @@
+export function suggestionsResource(db: any) {
+  return {
+    resource: db.table('assistant_suggestions'),
+    options: {
+      navigation: { name: 'Подсказки', icon: 'Chat' },
+      listProperties: ['code', 'title', 'enabled', 'sort_order', 'target', 'updated_at'],
+      filterProperties: ['rn', 'enabled', 'target', 'code'],
+      showProperties: [
+        'id', 'rn', 'code', 'title', 'emoji', 'enabled',
+        'sort_order', 'screen_context', 'target',
+        'active_from', 'active_to', 'allowed_br',
+        'payload', 'availability_rules', 'fallback_payload',
+        'created_at', 'updated_at',
+      ],
+      editProperties: [
+        'rn', 'code', 'title', 'emoji', 'enabled',
+        'sort_order', 'screen_context', 'target',
+        'active_from', 'active_to', 'allowed_br',
+        'payload', 'availability_rules', 'fallback_payload',
+      ],
+      properties: {
+        id: { label: 'ID' },
+        rn: { label: 'Торговая сеть (rn)' },
+        code: { label: 'Код подсказки' },
+        title: { label: 'Заголовок' },
+        emoji: { label: 'Эмодзи' },
+        enabled: { label: 'Активна' },
+        sort_order: { label: 'Порядок сортировки' },
+        screen_context: { label: 'Контекст экрана' },
+        target: { label: 'Платформа' },
+        active_from: { label: 'Активна с' },
+        active_to: { label: 'Активна по' },
+        allowed_br: { label: 'Разрешённые города (JSON)', type: 'textarea' },
+        payload: { label: 'Payload (JSON)', type: 'textarea' },
+        availability_rules: { label: 'Правила видимости (JSON)', type: 'textarea' },
+        fallback_payload: { label: 'Fallback payload (JSON)', type: 'textarea' },
+        created_at: { label: 'Создана' },
+        updated_at: { label: 'Обновлена' },
+      },
+    },
+  };
+}

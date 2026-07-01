@@ -28,7 +28,7 @@ export interface TestProduct {
 export const TEST_PRODUCTS: TestProduct[] = [
   {
     id: 'aaaaaaaa-0001-0001-0001-000000000001',
-    externalId: 'ext-0001-0001-0001-000000000001',
+    externalId: 'eeeeeeee-0001-0001-0001-000000000001',
     name: 'Ролл Лосось Классик',
     categoryId: 'roll',
     categoryName: 'Роллы',
@@ -47,7 +47,7 @@ export const TEST_PRODUCTS: TestProduct[] = [
   },
   {
     id: 'aaaaaaaa-0002-0002-0002-000000000002',
-    externalId: 'ext-0002-0002-0002-000000000002',
+    externalId: 'eeeeeeee-0002-0002-0002-000000000002',
     name: 'Ролл Лосось Авокадо',
     categoryId: 'roll',
     categoryName: 'Роллы',
@@ -66,7 +66,7 @@ export const TEST_PRODUCTS: TestProduct[] = [
   },
   {
     id: 'aaaaaaaa-0003-0003-0003-000000000003',
-    externalId: 'ext-0003-0003-0003-000000000003',
+    externalId: 'eeeeeeee-0003-0003-0003-000000000003',
     name: 'Спайси Тунец',
     categoryId: 'roll',
     categoryName: 'Роллы',
@@ -85,7 +85,7 @@ export const TEST_PRODUCTS: TestProduct[] = [
   },
   {
     id: 'aaaaaaaa-0004-0004-0004-000000000004',
-    externalId: 'ext-0004-0004-0004-000000000004',
+    externalId: 'eeeeeeee-0004-0004-0004-000000000004',
     name: 'Роллы Калифорния',
     categoryId: 'roll',
     categoryName: 'Роллы',
@@ -104,7 +104,7 @@ export const TEST_PRODUCTS: TestProduct[] = [
   },
   {
     id: 'aaaaaaaa-0005-0005-0005-000000000005',
-    externalId: 'ext-0005-0005-0005-000000000005',
+    externalId: 'eeeeeeee-0005-0005-0005-000000000005',
     name: 'Суши Сет Премиум',
     categoryId: 'set',
     categoryName: 'Сеты',
@@ -123,7 +123,7 @@ export const TEST_PRODUCTS: TestProduct[] = [
   },
   {
     id: 'aaaaaaaa-0006-0006-0006-000000000006',
-    externalId: 'ext-0006-0006-0006-000000000006',
+    externalId: 'eeeeeeee-0006-0006-0006-000000000006',
     name: 'Ролл Огурец Вегетарианский',
     categoryId: 'roll',
     categoryName: 'Роллы',

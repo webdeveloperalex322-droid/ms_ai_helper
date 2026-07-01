@@ -11,6 +11,7 @@ import { AssistantModule } from './modules/assistant/assistant.module';
 import { SuggestionsModule } from './modules/suggestions/suggestions.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AdminConfigModule } from './modules/admin-config/admin-config.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AdminConfigModule } from './modules/admin-config/admin-config.module';
     SuggestionsModule,
     AnalyticsModule,
     AdminConfigModule,
+    AdminModule,
   ],
   controllers: [HealthController],
 })
