@@ -21,15 +21,20 @@ function makeApiClient(products = [MOCK_RAW_PRODUCT]) {
   } as any;
 }
 
-function makeDb() {
+function makeDb({ brs = [{ br: 'br-001' }], categoryRows = [] as { slug: string }[] } = {}) {
   const returningProduct = { id: 'db-product-uuid' };
   const returning = vi.fn().mockResolvedValue([returningProduct]);
   const onConflictDoUpdate = vi.fn().mockReturnValue({ returning });
   const values = vi.fn().mockReturnValue({ onConflictDoUpdate });
   const insert = vi.fn().mockReturnValue({ values });
 
-  // For select queries (getActiveBrs, markUnseen)
-  const where = vi.fn().mockResolvedValue([{ br: 'br-001' }]);
+  // select(...).from(...).where(...) is awaited by getActiveBrs/markUnseen (-> brs),
+  // and .where(...).orderBy(...) is used by resolveCategorySlugs (-> categoryRows).
+  const where = vi.fn().mockImplementation(() => {
+    const p: any = Promise.resolve(brs);
+    p.orderBy = vi.fn().mockResolvedValue(categoryRows);
+    return p;
+  });
   const from = vi.fn().mockReturnValue({ where });
   const select = vi.fn().mockReturnValue({ from });
 
@@ -47,6 +52,7 @@ function makeJobService() {
     create: vi.fn().mockResolvedValue({ id: 'job-1' }),
     markSuccess: vi.fn().mockResolvedValue(undefined),
     markFailed: vi.fn().mockResolvedValue(undefined),
+    exists: vi.fn().mockResolvedValue(true),
   };
 }
 
@@ -108,6 +114,28 @@ describe('ProductImportService', () => {
     expect(jobService.markSuccess).toHaveBeenCalled();
   });
 
+  it('aborts import before any category when job row is already deleted', async () => {
+    jobService.exists.mockResolvedValue(false);
+    const result = await service.importProducts(baseOptions);
+    expect(result.imported).toBe(0);
+    expect(apiClient.getProductsByCategory).not.toHaveBeenCalled();
+    expect(jobService.markSuccess).not.toHaveBeenCalled();
+    expect(jobService.markFailed).not.toHaveBeenCalled();
+  });
+
+  it('stops mid-run once the job row is deleted between categories', async () => {
+    // exists: true for the br check + first category, then deleted
+    jobService.exists
+      .mockResolvedValueOnce(true) // br loop
+      .mockResolvedValueOnce(true) // category #1
+      .mockResolvedValue(false); // category #2 onward -> cancelled
+    const result = await service.importProducts(baseOptions);
+    expect(apiClient.getProductsByCategory).toHaveBeenCalledTimes(1);
+    expect(result.imported).toBe(0);
+    expect(jobService.markSuccess).not.toHaveBeenCalled();
+    expect(jobService.markFailed).not.toHaveBeenCalled();
+  });
+
   it('skips categories that fail and continues with others', async () => {
     let callCount = 0;
     apiClient.getProductsByCategory.mockImplementation(() => {
@@ -117,5 +145,36 @@ describe('ProductImportService', () => {
     });
     const result = await service.importProducts(baseOptions);
     expect(result.imported).toBeGreaterThan(0); // other categories succeeded
+  });
+
+  it('requests products using stored non-default category slugs', async () => {
+    db = makeDb({ categoryRows: [{ slug: 'rolly' }, { slug: 'nabory' }] });
+    service = new ProductImportService(db as any, apiClient as any, normalizer, jobService as any);
+
+    await service.importProducts(baseOptions);
+
+    const requestedSlugs = apiClient.getProductsByCategory.mock.calls.map((c: any[]) => c[3]);
+    expect(requestedSlugs).toEqual(['rolly', 'nabory']);
+    expect(requestedSlugs).not.toContain('main');
+  });
+
+  it('falls back to DEFAULT_CATEGORY_IDS when no categories are stored', async () => {
+    db = makeDb({ categoryRows: [] });
+    service = new ProductImportService(db as any, apiClient as any, normalizer, jobService as any);
+
+    await service.importProducts(baseOptions);
+
+    const requestedSlugs = apiClient.getProductsByCategory.mock.calls.map((c: any[]) => c[3]);
+    expect(requestedSlugs).toEqual(['roll', 'set', 'drink', 'sauce', 'dessert', 'hot']);
+  });
+
+  it('honors an explicit categoryIds override (interpreted as slugs)', async () => {
+    db = makeDb({ categoryRows: [{ slug: 'rolly' }] });
+    service = new ProductImportService(db as any, apiClient as any, normalizer, jobService as any);
+
+    await service.importProducts({ ...baseOptions, categoryIds: ['custom-slug'] });
+
+    const requestedSlugs = apiClient.getProductsByCategory.mock.calls.map((c: any[]) => c[3]);
+    expect(requestedSlugs).toEqual(['custom-slug']);
   });
 });

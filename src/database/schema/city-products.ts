@@ -20,7 +20,7 @@ export const cityProducts = pgTable(
     target: text('target').notNull(),
     productId: uuid('product_id')
       .notNull()
-      .references(() => products.id),
+      .references(() => products.id, { onDelete: 'cascade' }),
     price: numeric('price', { precision: 10, scale: 2 }),
     oldPrice: numeric('old_price', { precision: 10, scale: 2 }),
     currency: text('currency').default('RUB'),

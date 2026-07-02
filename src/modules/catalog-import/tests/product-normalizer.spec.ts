@@ -33,6 +33,21 @@ describe('ProductNormalizerService', () => {
     };
   }
 
+  it('prefers the plain productId (shared identity) over the target-suffixed id', () => {
+    const result = service.normalize(
+      makeRaw({ id: '34A096F0-F151-11F0-8679-B1F02C7CC614-WEB', productId: '34A096F0-F151-11F0-8679-B1F02C7CC614' }),
+      'rn-001',
+      'br-001',
+      'WEB',
+    );
+    expect(result.product.externalProductId).toBe('34A096F0-F151-11F0-8679-B1F02C7CC614');
+  });
+
+  it('falls back to id when productId is absent', () => {
+    const result = service.normalize(makeRaw({ id: 'EXT-001', productId: undefined }), 'rn', 'br', 'WEB');
+    expect(result.product.externalProductId).toBe('EXT-001');
+  });
+
   it('normalizes a valid product correctly', () => {
     const result = service.normalize(makeRaw(), 'rn-001', 'br-001', 'WEB');
 

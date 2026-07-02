@@ -45,6 +45,7 @@ export class CityImportService {
             rn,
             br: cityData.id ?? cityData.br,
             name: cityData.name,
+            slug: cityData.slug ?? null,
             isActive: cityData.isActive !== false,
             rawPayload: cityData,
             importedAt: new Date(),
@@ -57,6 +58,7 @@ export class CityImportService {
               target: [cities.rn, cities.br],
               set: {
                 name: newCity.name,
+                slug: newCity.slug,
                 isActive: newCity.isActive,
                 rawPayload: newCity.rawPayload,
                 importedAt: newCity.importedAt,

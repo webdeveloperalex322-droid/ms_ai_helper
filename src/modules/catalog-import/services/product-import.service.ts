@@ -1,6 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { DATABASE_TOKEN, DrizzleDB } from '../../../database/database.module';
-import { products, cityProducts, cities } from '../../../database/schema';
+import { products, cityProducts, cities, categories } from '../../../database/schema';
 import {
   CATALOG_API_CLIENT_TOKEN,
   CatalogApiClient,
@@ -8,7 +8,7 @@ import {
 import { ProductNormalizerService } from './product-normalizer.service';
 import { ImportJobService } from './import-job.service';
 import { randomUUID } from 'crypto';
-import { eq, and, notInArray } from 'drizzle-orm';
+import { eq, and, asc, notInArray } from 'drizzle-orm';
 
 export interface ProductImportOptions {
   rn: string;
@@ -20,6 +20,14 @@ export interface ProductImportOptions {
 }
 
 const DEFAULT_CATEGORY_IDS = ['roll', 'set', 'drink', 'sauce', 'dessert', 'hot'];
+
+/** Thrown when the import job row was deleted mid-run — signals a user-requested cancellation. */
+export class ImportCancelledError extends Error {
+  constructor(public readonly jobId: string) {
+    super(`Import job ${jobId} was cancelled`);
+    this.name = 'ImportCancelledError';
+  }
+}
 
 @Injectable()
 export class ProductImportService {
@@ -59,25 +67,44 @@ export class ProductImportService {
       await this.importJobService.markSuccess(job.id, { imported });
       return { jobId: job.id, imported };
     } catch (err) {
+      if (err instanceof ImportCancelledError) {
+        // Job row was deleted via admin panel — nothing to mark, just stop.
+        this.logger.warn(`Import job ${job.id} cancelled by user; stopping.`);
+        return { jobId: job.id, imported: 0 };
+      }
       await this.importJobService.markFailed(job.id, String(err));
       throw err;
     }
   }
 
-  private async importFull(options: ProductImportOptions, _jobId: string): Promise<number> {
+  /** Aborts the run if the job row was deleted (cancellation signal from admin panel). */
+  private async ensureNotCancelled(jobId: string): Promise<void> {
+    if (!(await this.importJobService.exists(jobId))) {
+      throw new ImportCancelledError(jobId);
+    }
+  }
+
+  private async importFull(options: ProductImportOptions, jobId: string): Promise<number> {
     const targetBrs = options.br ? [options.br] : await this.getActiveBrs(options.rn);
 
-    const categoryIds = options.categoryIds ?? DEFAULT_CATEGORY_IDS;
     let totalImported = 0;
 
     for (const br of targetBrs) {
+      await this.ensureNotCancelled(jobId);
+
+      // Prefer an explicit override, else the imported category slugs for this city,
+      // else fall back to the built-in defaults.
+      const categorySlugs =
+        options.categoryIds ?? (await this.resolveCategorySlugs(options.rn, br, options.target));
+
       // Track which product IDs were seen in this import run
       const seenExternalIds: string[] = [];
 
-      for (const categoryId of categoryIds) {
+      for (const categorySlug of categorySlugs) {
+        await this.ensureNotCancelled(jobId);
         try {
           const rawProducts = await this.fetchWithRetry(() =>
-            this.apiClient.getProductsByCategory(options.rn, br, options.target, categoryId),
+            this.apiClient.getProductsByCategory(options.rn, br, options.target, categorySlug),
           );
 
           for (const raw of rawProducts) {
@@ -86,7 +113,7 @@ export class ProductImportService {
             totalImported++;
           }
         } catch (err) {
-          this.logger.warn(`Failed to import category ${categoryId} for br ${br}: ${err}`);
+          this.logger.warn(`Failed to import category ${categorySlug} for br ${br}: ${err}`);
         }
       }
 
@@ -148,12 +175,13 @@ export class ProductImportService {
     this.logger.log(`Marked ${toDisable.length} products unavailable for br=${br}`);
   }
 
-  private async importByIds(options: ProductImportOptions, _jobId: string): Promise<number> {
+  private async importByIds(options: ProductImportOptions, jobId: string): Promise<number> {
     const ids = options.ids!;
     const targetBrs = options.br ? [options.br] : await this.getActiveBrs(options.rn);
     let imported = 0;
 
     for (const br of targetBrs) {
+      await this.ensureNotCancelled(jobId);
       const rawProducts = await this.fetchWithRetry(() =>
         this.apiClient.getProductsByIds(options.rn, br, options.target, ids),
       );
@@ -222,6 +250,36 @@ export class ProductImportService {
           importedAt: new Date(),
         },
       });
+  }
+
+  /**
+   * Category slugs to request products for, from the imported `categories` table:
+   * active, non-default (skip virtual aggregates), ordered by orderIndex.
+   * Falls back to the built-in defaults (with a warning) when none are stored.
+   */
+  private async resolveCategorySlugs(rn: string, br: string, target: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ slug: categories.slug })
+      .from(categories)
+      .where(
+        and(
+          eq(categories.rn, rn),
+          eq(categories.br, br),
+          eq(categories.target, target),
+          eq(categories.isActive, true),
+          eq(categories.isDefault, false),
+        ),
+      )
+      .orderBy(asc(categories.orderIndex));
+
+    const slugs = rows.map((r) => r.slug).filter(Boolean);
+    if (slugs.length === 0) {
+      this.logger.warn(
+        `No stored categories for rn=${rn} br=${br} target=${target}; falling back to DEFAULT_CATEGORY_IDS.`,
+      );
+      return DEFAULT_CATEGORY_IDS;
+    }
+    return slugs;
   }
 
   private async getActiveBrs(rn: string): Promise<string[]> {

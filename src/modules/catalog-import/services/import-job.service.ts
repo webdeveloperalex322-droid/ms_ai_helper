@@ -30,6 +30,16 @@ export class ImportJobService {
       .where(eq(importJobs.id, id));
   }
 
+  /** Returns false if the job row no longer exists (e.g. deleted/cancelled via admin panel). */
+  async exists(id: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ id: importJobs.id })
+      .from(importJobs)
+      .where(eq(importJobs.id, id))
+      .limit(1);
+    return rows.length > 0;
+  }
+
   async markPartialFailed(id: string, error: string, stats?: Record<string, any>): Promise<void> {
     await this.db
       .update(importJobs)

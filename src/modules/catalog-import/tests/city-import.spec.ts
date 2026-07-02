@@ -84,6 +84,16 @@ describe('CityImportService', () => {
     expect(jobService.markFailed).toHaveBeenCalledWith('job-1', expect.any(String));
   }, 20000);
 
+  it('captures the city slug into the inserted row', async () => {
+    apiClient = makeApiClient([
+      { id: 'br-001', br: 'br-001', name: 'Тюмень', slug: 'tyumen', isActive: true } as any,
+    ]);
+    service = new CityImportService(db as any, apiClient as any, jobService as any);
+    await service.importCities('rn-test');
+    const inserted = db.values.mock.calls[0][0];
+    expect(inserted.slug).toBe('tyumen');
+  });
+
   it('uses id as br fallback when br field is absent', async () => {
     apiClient = makeApiClient([{ id: 'city-guid', name: 'Казань', isActive: true } as any]);
     service = new CityImportService(db as any, apiClient as any, jobService as any);

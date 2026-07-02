@@ -18,6 +18,9 @@ async function bootstrap() {
   const port = config.get<number>('PORT') ?? 3000;
   const prefix = config.get<string>('API_PREFIX') ?? 'v1';
 
+  // Dev convenience: allow the standalone test-client (file:// or other port) to call the API.
+  app.enableCors();
+
   app.setGlobalPrefix(prefix);
 
   app.useGlobalPipes(

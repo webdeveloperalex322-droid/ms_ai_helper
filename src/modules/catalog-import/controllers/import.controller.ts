@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { IsString, IsOptional, IsArray, IsEnum } from 'class-validator';
 import { CityImportService } from '../services/city-import.service';
 import { ProductImportService } from '../services/product-import.service';
+import { CategoryImportService } from '../services/category-import.service';
 
 class ImportCitiesDto {
   @IsString()
@@ -34,6 +35,19 @@ class ImportProductsDto {
   categoryIds?: string[];
 }
 
+class ImportCategoriesDto {
+  @IsString()
+  rn: string;
+
+  @IsOptional()
+  @IsString()
+  target?: string;
+
+  @IsOptional()
+  @IsString()
+  slug?: string;
+}
+
 class ImportByIdsDto {
   @IsString()
   rn: string;
@@ -56,6 +70,7 @@ export class ImportController {
   constructor(
     private readonly cityImportService: CityImportService,
     private readonly productImportService: ProductImportService,
+    private readonly categoryImportService: CategoryImportService,
   ) {}
 
   @Post('cities')
@@ -82,6 +97,22 @@ export class ImportController {
       categoryIds: body.categoryIds,
     });
     return { job_id: result.jobId, status: body.mode === 'dry-run' ? 'dry-run' : 'completed' };
+  }
+
+  @Post('categories')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Import categories for a retail network / city' })
+  async importCategories(@Body() body: ImportCategoriesDto) {
+    const result = await this.categoryImportService.importCategories({
+      rn: body.rn,
+      target: body.target ?? 'WEB',
+      slug: body.slug,
+    });
+    return {
+      job_id: result.jobId,
+      status: 'completed',
+      stats: { imported: result.imported, errors: result.errors, cities: result.cities },
+    };
   }
 
   @Post('products/by-ids')
