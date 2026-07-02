@@ -31,13 +31,12 @@ export const categories = pgTable(
     importedAt: timestamp('imported_at').notNull().defaultNow(),
   },
   (table) => ({
-    rnBrTargetCatUniq: unique('categories_rn_br_target_cat_uniq').on(
+    rnTargetSlugUniq: unique('categories_rn_target_slug_uniq').on(
       table.rn,
-      table.br,
       table.target,
-      table.categoryId,
+      table.slug,
     ),
-    lookupIdx: index('categories_lookup_idx').on(table.rn, table.br, table.target, table.isActive),
+    lookupIdx: index('categories_lookup_idx').on(table.rn, table.target, table.isActive),
   }),
 );
 

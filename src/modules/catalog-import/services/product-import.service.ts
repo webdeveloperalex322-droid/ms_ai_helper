@@ -92,10 +92,10 @@ export class ProductImportService {
     for (const br of targetBrs) {
       await this.ensureNotCancelled(jobId);
 
-      // Prefer an explicit override, else the imported category slugs for this city,
+      // Prefer an explicit override, else the imported (network-global) category slugs,
       // else fall back to the built-in defaults.
       const categorySlugs =
-        options.categoryIds ?? (await this.resolveCategorySlugs(options.rn, br, options.target));
+        options.categoryIds ?? (await this.resolveCategorySlugs(options.rn, options.target));
 
       // Track which product IDs were seen in this import run
       const seenExternalIds: string[] = [];
@@ -253,18 +253,17 @@ export class ProductImportService {
   }
 
   /**
-   * Category slugs to request products for, from the imported `categories` table:
-   * active, non-default (skip virtual aggregates), ordered by orderIndex.
+   * Category slugs to request products for, from the imported (network-global) `categories`
+   * table: active, non-default (skip virtual aggregates), ordered by orderIndex.
    * Falls back to the built-in defaults (with a warning) when none are stored.
    */
-  private async resolveCategorySlugs(rn: string, br: string, target: string): Promise<string[]> {
+  private async resolveCategorySlugs(rn: string, target: string): Promise<string[]> {
     const rows = await this.db
       .select({ slug: categories.slug })
       .from(categories)
       .where(
         and(
           eq(categories.rn, rn),
-          eq(categories.br, br),
           eq(categories.target, target),
           eq(categories.isActive, true),
           eq(categories.isDefault, false),
@@ -275,7 +274,7 @@ export class ProductImportService {
     const slugs = rows.map((r) => r.slug).filter(Boolean);
     if (slugs.length === 0) {
       this.logger.warn(
-        `No stored categories for rn=${rn} br=${br} target=${target}; falling back to DEFAULT_CATEGORY_IDS.`,
+        `No stored categories for rn=${rn} target=${target}; falling back to DEFAULT_CATEGORY_IDS.`,
       );
       return DEFAULT_CATEGORY_IDS;
     }

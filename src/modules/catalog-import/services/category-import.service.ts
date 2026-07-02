@@ -47,6 +47,10 @@ export class CategoryImportService {
       let errors = 0;
       let citiesProcessed = 0;
 
+      // Categories are global per (rn, target) — cities share one catalog. We only need
+      // it for product import, so a slug is stored once regardless of which city returned it.
+      const seenSlugs = new Set<string>();
+
       for (const slug of citySlugs) {
         if (!(await this.importJobService.exists(job.id))) {
           this.logger.warn(`Category import job ${job.id} cancelled by user; stopping.`);
@@ -64,11 +68,11 @@ export class CategoryImportService {
             continue;
           }
 
-          const seenCategoryIds: string[] = [];
           for (const cat of fetched) {
+            if (seenSlugs.has(cat.slug)) continue; // already stored by an earlier city
             try {
               await this.upsertCategory(cat, rn, br, target);
-              seenCategoryIds.push(cat.categoryId);
+              seenSlugs.add(cat.slug);
               imported++;
             } catch (err) {
               this.logger.warn(`Failed to import category ${cat.categoryId} (${slug}): ${err}`);
@@ -76,20 +80,18 @@ export class CategoryImportService {
             }
           }
 
-          // Soft-retire categories no longer returned — but never on an empty fetch.
-          if (seenCategoryIds.length > 0) {
-            await this.markUnseen(rn, br, target, seenCategoryIds);
-          } else {
-            this.logger.warn(
-              `Empty category fetch for slug=${slug} (br=${br}); not deactivating anything.`,
-            );
-          }
-
           citiesProcessed++;
         } catch (err) {
           this.logger.warn(`Failed to import categories for slug=${slug}: ${err}`);
           errors++;
         }
+      }
+
+      // Soft-retire categories no longer returned — but never when nothing was fetched at all.
+      if (seenSlugs.size > 0) {
+        await this.markUnseen(rn, target, [...seenSlugs]);
+      } else {
+        this.logger.warn(`Empty category fetch for rn=${rn}; not deactivating anything.`);
       }
 
       await this.importJobService.markSuccess(job.id, {
@@ -145,9 +147,9 @@ export class CategoryImportService {
       .insert(categories)
       .values(newCategory)
       .onConflictDoUpdate({
-        target: [categories.rn, categories.br, categories.target, categories.categoryId],
+        target: [categories.rn, categories.target, categories.slug],
         set: {
-          slug: newCategory.slug,
+          categoryId: newCategory.categoryId,
           name: newCategory.name,
           parentId: newCategory.parentId,
           orderIndex: newCategory.orderIndex,
@@ -162,21 +164,15 @@ export class CategoryImportService {
       });
   }
 
-  /** Mark categories not present in the latest fetch as inactive for this city/channel. */
-  private async markUnseen(
-    rn: string,
-    br: string,
-    target: string,
-    seenCategoryIds: string[],
-  ): Promise<void> {
+  /** Mark categories not present in the latest fetch as inactive for this network/channel. */
+  private async markUnseen(rn: string, target: string, seenSlugs: string[]): Promise<void> {
     const existing = await this.db
-      .select({ id: categories.id, categoryId: categories.categoryId })
+      .select({ id: categories.id, slug: categories.slug })
       .from(categories)
-      .where(and(eq(categories.rn, rn), eq(categories.br, br), eq(categories.target, target)));
+      .where(and(eq(categories.rn, rn), eq(categories.target, target)));
 
-    const toDeactivate = existing
-      .filter((c) => !seenCategoryIds.includes(c.categoryId))
-      .map((c) => c.id);
+    const seen = new Set(seenSlugs);
+    const toDeactivate = existing.filter((c) => !seen.has(c.slug)).map((c) => c.id);
 
     if (toDeactivate.length === 0) return;
 
@@ -185,7 +181,7 @@ export class CategoryImportService {
       .set({ isActive: false })
       .where(inArray(categories.id, toDeactivate));
 
-    this.logger.log(`Deactivated ${toDeactivate.length} unseen categories for br=${br}`);
+    this.logger.log(`Deactivated ${toDeactivate.length} unseen categories for rn=${rn}`);
   }
 
   private async fetchWithRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
