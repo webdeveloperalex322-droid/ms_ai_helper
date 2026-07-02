@@ -15,7 +15,9 @@ export function importJobsResource(
       actions: {
         new: { isAccessible: false },
         edit: { isAccessible: false },
-        delete: { isAccessible: false },
+        // Enabled so operators can cancel a running import: deleting the job row is
+        // the cancellation signal the import loop polls for (ImportJobService.exists).
+        delete: { isAccessible: true },
         'trigger-city-import': createCityImportAction(cityImportService, defaultRn),
         'trigger-product-import': createProductImportAction(productImportService, defaultRn),
       },

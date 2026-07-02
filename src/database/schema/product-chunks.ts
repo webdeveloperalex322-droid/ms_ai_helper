@@ -7,7 +7,7 @@ export const productChunks = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     productId: uuid('product_id')
       .notNull()
-      .references(() => products.id),
+      .references(() => products.id, { onDelete: 'cascade' }),
     rn: uuid('rn').notNull(),
     br: uuid('br').notNull(),
     target: text('target').notNull(),

@@ -47,6 +47,7 @@ function makeJobService() {
     create: vi.fn().mockResolvedValue({ id: 'job-1' }),
     markSuccess: vi.fn().mockResolvedValue(undefined),
     markFailed: vi.fn().mockResolvedValue(undefined),
+    exists: vi.fn().mockResolvedValue(true),
   };
 }
 
@@ -106,6 +107,28 @@ describe('ProductImportService', () => {
     const result = await service.importProducts(baseOptions);
     expect(result.imported).toBe(0);
     expect(jobService.markSuccess).toHaveBeenCalled();
+  });
+
+  it('aborts import before any category when job row is already deleted', async () => {
+    jobService.exists.mockResolvedValue(false);
+    const result = await service.importProducts(baseOptions);
+    expect(result.imported).toBe(0);
+    expect(apiClient.getProductsByCategory).not.toHaveBeenCalled();
+    expect(jobService.markSuccess).not.toHaveBeenCalled();
+    expect(jobService.markFailed).not.toHaveBeenCalled();
+  });
+
+  it('stops mid-run once the job row is deleted between categories', async () => {
+    // exists: true for the br check + first category, then deleted
+    jobService.exists
+      .mockResolvedValueOnce(true) // br loop
+      .mockResolvedValueOnce(true) // category #1
+      .mockResolvedValue(false); // category #2 onward -> cancelled
+    const result = await service.importProducts(baseOptions);
+    expect(apiClient.getProductsByCategory).toHaveBeenCalledTimes(1);
+    expect(result.imported).toBe(0);
+    expect(jobService.markSuccess).not.toHaveBeenCalled();
+    expect(jobService.markFailed).not.toHaveBeenCalled();
   });
 
   it('skips categories that fail and continues with others', async () => {

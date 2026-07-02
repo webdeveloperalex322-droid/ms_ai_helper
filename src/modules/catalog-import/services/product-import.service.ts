@@ -21,6 +21,14 @@ export interface ProductImportOptions {
 
 const DEFAULT_CATEGORY_IDS = ['roll', 'set', 'drink', 'sauce', 'dessert', 'hot'];
 
+/** Thrown when the import job row was deleted mid-run — signals a user-requested cancellation. */
+export class ImportCancelledError extends Error {
+  constructor(public readonly jobId: string) {
+    super(`Import job ${jobId} was cancelled`);
+    this.name = 'ImportCancelledError';
+  }
+}
+
 @Injectable()
 export class ProductImportService {
   private readonly logger = new Logger(ProductImportService.name);
@@ -59,22 +67,37 @@ export class ProductImportService {
       await this.importJobService.markSuccess(job.id, { imported });
       return { jobId: job.id, imported };
     } catch (err) {
+      if (err instanceof ImportCancelledError) {
+        // Job row was deleted via admin panel — nothing to mark, just stop.
+        this.logger.warn(`Import job ${job.id} cancelled by user; stopping.`);
+        return { jobId: job.id, imported: 0 };
+      }
       await this.importJobService.markFailed(job.id, String(err));
       throw err;
     }
   }
 
-  private async importFull(options: ProductImportOptions, _jobId: string): Promise<number> {
+  /** Aborts the run if the job row was deleted (cancellation signal from admin panel). */
+  private async ensureNotCancelled(jobId: string): Promise<void> {
+    if (!(await this.importJobService.exists(jobId))) {
+      throw new ImportCancelledError(jobId);
+    }
+  }
+
+  private async importFull(options: ProductImportOptions, jobId: string): Promise<number> {
     const targetBrs = options.br ? [options.br] : await this.getActiveBrs(options.rn);
 
     const categoryIds = options.categoryIds ?? DEFAULT_CATEGORY_IDS;
     let totalImported = 0;
 
     for (const br of targetBrs) {
+      await this.ensureNotCancelled(jobId);
+
       // Track which product IDs were seen in this import run
       const seenExternalIds: string[] = [];
 
       for (const categoryId of categoryIds) {
+        await this.ensureNotCancelled(jobId);
         try {
           const rawProducts = await this.fetchWithRetry(() =>
             this.apiClient.getProductsByCategory(options.rn, br, options.target, categoryId),
@@ -148,12 +171,13 @@ export class ProductImportService {
     this.logger.log(`Marked ${toDisable.length} products unavailable for br=${br}`);
   }
 
-  private async importByIds(options: ProductImportOptions, _jobId: string): Promise<number> {
+  private async importByIds(options: ProductImportOptions, jobId: string): Promise<number> {
     const ids = options.ids!;
     const targetBrs = options.br ? [options.br] : await this.getActiveBrs(options.rn);
     let imported = 0;
 
     for (const br of targetBrs) {
+      await this.ensureNotCancelled(jobId);
       const rawProducts = await this.fetchWithRetry(() =>
         this.apiClient.getProductsByIds(options.rn, br, options.target, ids),
       );
