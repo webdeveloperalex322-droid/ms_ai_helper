@@ -23,6 +23,19 @@ describe('CatalogApiMockClient', () => {
     rolls.forEach((p) => expect(p.categoryId).toBe('roll'));
   });
 
+  it('getCategories returns br + categories including a default one', async () => {
+    const { br, categories } = await client.getCategories('rn', 'tyumen', 'WEB');
+    expect(br).toBeTruthy();
+    expect(categories.length).toBeGreaterThan(0);
+    categories.forEach((c) => {
+      expect(c.categoryId).toBeTruthy();
+      expect(c.slug).toBeTruthy();
+      expect(c.name).toBeTruthy();
+    });
+    expect(categories.some((c) => c.isDefault === true)).toBe(true);
+    expect(categories.some((c) => c.isDefault === false)).toBe(true);
+  });
+
   it('getProductsByCategory with empty categoryId returns all', async () => {
     const all = await client.getProductsByCategory('rn', 'br', 'WEB', '');
     expect(all.length).toBeGreaterThan(0);

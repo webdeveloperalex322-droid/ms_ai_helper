@@ -7,6 +7,7 @@ export const cities = pgTable(
     rn: uuid('rn').notNull(),
     br: uuid('br').notNull(),
     name: text('name').notNull(),
+    slug: text('slug'),
     isActive: boolean('is_active').notNull().default(true),
     rawPayload: jsonb('raw_payload'),
     importedAt: timestamp('imported_at').notNull().defaultNow(),

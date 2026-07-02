@@ -18,7 +18,9 @@ export class ProductNormalizerService {
     return {
       product: {
         rn,
-        externalProductId: raw.id,
+        // Shared product identity is the plain GUID (`productId`); `id` carries a
+        // target suffix (e.g. "<guid>-WEB") that would break the uuid column.
+        externalProductId: raw.productId ?? raw.id,
         name: raw.name?.trim() ?? '',
         categoryId: raw.categoryId ?? null,
         categoryName: raw.categoryName ?? null,

@@ -3,6 +3,7 @@ import { HttpModule } from '@nestjs/axios';
 import { ImportController } from './controllers/import.controller';
 import { CityImportService } from './services/city-import.service';
 import { ProductImportService } from './services/product-import.service';
+import { CategoryImportService } from './services/category-import.service';
 import { ProductNormalizerService } from './services/product-normalizer.service';
 import { ImportJobService } from './services/import-job.service';
 import { CatalogApiMockClient } from './clients/catalog-api-mock.client';
@@ -29,9 +30,10 @@ import { ConfigService } from '@nestjs/config';
     CatalogApiHttpClient,
     CityImportService,
     ProductImportService,
+    CategoryImportService,
     ProductNormalizerService,
     ImportJobService,
   ],
-  exports: [CityImportService, ProductImportService],
+  exports: [CityImportService, ProductImportService, CategoryImportService],
 })
 export class CatalogImportModule {}

@@ -1,10 +1,41 @@
 import { Injectable } from '@nestjs/common';
 import {
   CatalogApiClient,
+  CategoryApiResponse,
   CityApiResponse,
   ProductApiResponse,
 } from './catalog-api.client.interface';
 const TEST_CITY_BR = '11111111-1111-1111-1111-111111111111';
+
+const MOCK_CATEGORIES: CategoryApiResponse[] = [
+  {
+    categoryId: 'CAT-MAIN',
+    slug: 'main',
+    name: 'Для вас',
+    parentId: 0,
+    orderIndex: 1,
+    isDefault: true,
+    target: 'WEB',
+  },
+  {
+    categoryId: 'CAT-ROLL',
+    slug: 'roll',
+    name: 'Роллы',
+    parentId: 0,
+    orderIndex: 2,
+    isDefault: false,
+    target: 'WEB',
+  },
+  {
+    categoryId: 'CAT-SET',
+    slug: 'set',
+    name: 'Сеты',
+    parentId: 0,
+    orderIndex: 3,
+    isDefault: false,
+    target: 'WEB',
+  },
+];
 
 const MOCK_CITIES: CityApiResponse[] = [
   { id: TEST_CITY_BR, name: 'Москва', isActive: true, br: TEST_CITY_BR },
@@ -120,14 +151,22 @@ export class CatalogApiMockClient implements CatalogApiClient {
     return MOCK_CITIES;
   }
 
+  async getCategories(
+    _rn: string,
+    _slug: string,
+    _target: string,
+  ): Promise<{ br: string; categories: CategoryApiResponse[] }> {
+    return { br: TEST_CITY_BR, categories: MOCK_CATEGORIES };
+  }
+
   async getProductsByCategory(
     _rn: string,
     _br: string,
     _target: string,
-    categoryId: string,
+    categorySlug: string,
   ): Promise<ProductApiResponse[]> {
-    if (!categoryId) return MOCK_PRODUCTS;
-    return MOCK_PRODUCTS.filter((p) => p.categoryId === categoryId);
+    if (!categorySlug) return MOCK_PRODUCTS;
+    return MOCK_PRODUCTS.filter((p) => p.categoryId === categorySlug);
   }
 
   async getProductsByIds(

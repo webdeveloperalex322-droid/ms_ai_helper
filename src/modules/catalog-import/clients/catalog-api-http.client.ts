@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import {
   CatalogApiClient,
+  CategoryApiResponse,
   CityApiResponse,
   ProductApiResponse,
 } from './catalog-api.client.interface';
@@ -29,13 +30,28 @@ export class CatalogApiHttpClient implements CatalogApiClient {
     return response.data;
   }
 
+  async getCategories(
+    rn: string,
+    slug: string,
+    target: string,
+  ): Promise<{ br: string; categories: CategoryApiResponse[] }> {
+    const url = `${this.citiesBaseUrl}/v1/init?rn=${rn}&slug=${slug}&target=${target}`;
+    this.logger.debug(`GET ${url}`);
+    const response: any = await firstValueFrom(this.httpService.get(url));
+    const data = response.data ?? {};
+    return {
+      br: data.businessRegion?.id,
+      categories: (data.categories ?? []) as CategoryApiResponse[],
+    };
+  }
+
   async getProductsByCategory(
     rn: string,
     br: string,
     target: string,
-    categoryId: string,
+    categorySlug: string,
   ): Promise<ProductApiResponse[]> {
-    const url = `${this.catalogBaseUrl}/v1/products?rn=${rn}&br=${br}&target=${target}&cat=${categoryId}&withArchive=false`;
+    const url = `${this.catalogBaseUrl}/v1/products?rn=${rn}&br=${br}&target=${target}&category=${categorySlug}&withArchive=false`;
     this.logger.debug(`GET ${url}`);
     const response: any = await firstValueFrom(this.httpService.get<ProductApiResponse[]>(url));
     return response.data;

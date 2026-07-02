@@ -1,5 +1,6 @@
 export * from './retail-networks';
 export * from './cities';
+export * from './categories';
 export * from './products';
 export * from './city-products';
 export * from './product-chunks';
