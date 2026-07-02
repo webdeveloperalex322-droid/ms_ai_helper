@@ -1,5 +1,6 @@
 import { CityImportService } from '../../catalog-import/services/city-import.service';
 import { ProductImportService } from '../../catalog-import/services/product-import.service';
+import { CategoryImportService } from '../../catalog-import/services/category-import.service';
 
 export function createCityImportAction(cityImportService: CityImportService, defaultRn: string) {
   return {
@@ -21,6 +22,37 @@ export function createCityImportAction(cityImportService: CityImportService, def
         };
       } catch (err: any) {
         return { notice: { message: `Ошибка импорта городов: ${err.message}`, type: 'error' } };
+      }
+    },
+  };
+}
+
+export function createCategoryImportAction(
+  categoryImportService: CategoryImportService,
+  defaultRn: string,
+) {
+  return {
+    actionType: 'resource',
+    icon: 'Tag',
+    label: 'Запустить импорт категорий',
+    component: false,
+    isAccessible: true,
+    handler: async (request: any, _response: any, context: any) => {
+      const payload = request.payload || {};
+      const rn = payload.rn || defaultRn;
+      const target = payload.target || 'WEB';
+      const slug = payload.slug || undefined;
+      try {
+        const result = await categoryImportService.importCategories({ rn, target, slug });
+        return {
+          notice: {
+            message: `Импорт категорий запущен. Job ID: ${result.jobId}, импортировано: ${result.imported}, ошибок: ${result.errors}, городов: ${result.cities}`,
+            type: 'success',
+          },
+          redirectUrl: `${context._admin.options.rootPath}/resources/import_jobs`,
+        };
+      } catch (err: any) {
+        return { notice: { message: `Ошибка импорта категорий: ${err.message}`, type: 'error' } };
       }
     },
   };

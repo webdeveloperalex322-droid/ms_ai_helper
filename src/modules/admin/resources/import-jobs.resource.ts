@@ -1,11 +1,17 @@
 import { CityImportService } from '../../catalog-import/services/city-import.service';
 import { ProductImportService } from '../../catalog-import/services/product-import.service';
-import { createCityImportAction, createProductImportAction } from '../actions/trigger-import.action';
+import { CategoryImportService } from '../../catalog-import/services/category-import.service';
+import {
+  createCityImportAction,
+  createProductImportAction,
+  createCategoryImportAction,
+} from '../actions/trigger-import.action';
 
 export function importJobsResource(
   db: any,
   cityImportService: CityImportService,
   productImportService: ProductImportService,
+  categoryImportService: CategoryImportService,
   defaultRn: string,
 ) {
   return {
@@ -19,6 +25,7 @@ export function importJobsResource(
         // the cancellation signal the import loop polls for (ImportJobService.exists).
         delete: { isAccessible: true },
         'trigger-city-import': createCityImportAction(cityImportService, defaultRn),
+        'trigger-category-import': createCategoryImportAction(categoryImportService, defaultRn),
         'trigger-product-import': createProductImportAction(productImportService, defaultRn),
       },
       listProperties: ['job_type', 'rn', 'br', 'status', 'started_at', 'finished_at'],

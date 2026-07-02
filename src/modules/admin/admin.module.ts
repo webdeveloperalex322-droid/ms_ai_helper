@@ -4,12 +4,14 @@ import { ConfigService } from '@nestjs/config';
 import { CatalogImportModule } from '../catalog-import/catalog-import.module';
 import { CityImportService } from '../catalog-import/services/city-import.service';
 import { ProductImportService } from '../catalog-import/services/product-import.service';
+import { CategoryImportService } from '../catalog-import/services/category-import.service';
 import { productsResource } from './resources/products.resource';
 import { cityProductsResource } from './resources/city-products.resource';
 import { adminRulesResource } from './resources/admin-rules.resource';
 import { suggestionsResource } from './resources/suggestions.resource';
 import { importJobsResource } from './resources/import-jobs.resource';
 import { citiesResource } from './resources/cities.resource';
+import { categoriesResource } from './resources/categories.resource';
 
 // Bypass TypeScript's import()->require() compilation for ESM-only packages
 const esmImport = new Function('modulePath', 'return import(modulePath)') as (m: string) => Promise<any>;
@@ -25,6 +27,7 @@ export class AdminModule implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly cityImportService: CityImportService,
     private readonly productImportService: ProductImportService,
+    private readonly categoryImportService: CategoryImportService,
   ) {}
 
   async onModuleInit() {
@@ -55,8 +58,15 @@ export class AdminModule implements OnModuleInit {
         cityProductsResource(db),
         adminRulesResource(db),
         suggestionsResource(db),
-        importJobsResource(db, this.cityImportService, this.productImportService, defaultRn),
+        importJobsResource(
+          db,
+          this.cityImportService,
+          this.productImportService,
+          this.categoryImportService,
+          defaultRn,
+        ),
         citiesResource(db),
+        categoriesResource(db),
       ],
       branding: {
         companyName: 'Sushi Master Admin',
