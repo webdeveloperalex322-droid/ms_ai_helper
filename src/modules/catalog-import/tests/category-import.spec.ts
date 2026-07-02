@@ -80,6 +80,25 @@ describe('CategoryImportService', () => {
     expect(db.insert).toHaveBeenCalledTimes(4); // 2 categories x 2 runs
   });
 
+  it('collapses categories sharing a slug (uniquify by slug)', async () => {
+    apiClient = makeApiClient({
+      br: 'br-001',
+      categories: [
+        { categoryId: 'CAT-A', slug: 'rolly', name: 'Роллы', isDefault: false, orderIndex: 1 },
+        { categoryId: 'CAT-B', slug: 'rolly', name: 'Роллы (дубль)', isDefault: false, orderIndex: 2 },
+        { categoryId: 'CAT-C', slug: 'main', name: 'Для вас', isDefault: false, orderIndex: 3 },
+      ],
+    });
+    service = new CategoryImportService(db as any, apiClient as any, jobService as any);
+
+    const result = await service.importCategories({ rn: 'rn-test', slug: 'tyumen' });
+
+    // Two distinct slugs => two inserts, second 'rolly' dropped.
+    expect(db.insert).toHaveBeenCalledTimes(2);
+    expect(result.imported).toBe(2);
+    expect(result.errors).toBe(0);
+  });
+
   it('does not deactivate anything when the fetch returns zero categories', async () => {
     apiClient = makeApiClient({ br: 'br-001', categories: [] });
     service = new CategoryImportService(db as any, apiClient as any, jobService as any);
@@ -101,6 +120,9 @@ describe('CategoryImportService', () => {
 
     expect(apiClient.getCategories).toHaveBeenCalledTimes(2);
     expect(result.cities).toBe(2);
+    // Categories are network-global: the second city returns the same slugs, so nothing new is stored.
+    expect(db.insert).toHaveBeenCalledTimes(2);
+    expect(result.imported).toBe(2);
   });
 
   it('counts an error and skips a city when no businessRegion is returned', async () => {
