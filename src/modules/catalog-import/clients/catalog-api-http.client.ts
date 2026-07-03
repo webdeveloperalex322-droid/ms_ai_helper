@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import {
+  AttributeApiResponse,
   CatalogApiClient,
   CategoryApiResponse,
   CityApiResponse,
@@ -100,5 +101,14 @@ export class CatalogApiHttpClient implements CatalogApiClient {
     } catch {
       return null;
     }
+  }
+
+  async getAttributes(rn: string): Promise<AttributeApiResponse[]> {
+    const url = `${this.catalogBaseUrl}/v1/attributes/PRODUCT?rn=${rn}`;
+    this.logger.debug(`GET ${url}`);
+    const response: any = await firstValueFrom(
+      this.httpService.get<AttributeApiResponse[]>(url, CatalogApiHttpClient.JSON_UTF8),
+    );
+    return response.data;
   }
 }

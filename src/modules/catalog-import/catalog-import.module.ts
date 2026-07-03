@@ -6,6 +6,7 @@ import { ProductImportService } from './services/product-import.service';
 import { CategoryImportService } from './services/category-import.service';
 import { ProductNormalizerService } from './services/product-normalizer.service';
 import { ImportJobService } from './services/import-job.service';
+import { AttributeImportService } from './services/attribute-import.service';
 import { CatalogApiMockClient } from './clients/catalog-api-mock.client';
 import { CatalogApiHttpClient } from './clients/catalog-api-http.client';
 import { CATALOG_API_CLIENT_TOKEN } from './clients/catalog-api.client.interface';
@@ -33,7 +34,8 @@ import { ConfigService } from '@nestjs/config';
     CategoryImportService,
     ProductNormalizerService,
     ImportJobService,
+    AttributeImportService,
   ],
-  exports: [CityImportService, ProductImportService, CategoryImportService],
+  exports: [CityImportService, ProductImportService, CategoryImportService, AttributeImportService],
 })
 export class CatalogImportModule {}

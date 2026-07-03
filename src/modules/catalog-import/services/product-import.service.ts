@@ -225,6 +225,7 @@ export class ProductImportService {
           carbs: normalized.product.carbs,
           imageUrl: normalized.product.imageUrl,
           rawPayload: normalized.product.rawPayload,
+          attributes: normalized.product.attributes,
           updatedAt: new Date(),
         },
       })

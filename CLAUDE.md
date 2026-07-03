@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project knowledge base
+
+Curated project knowledge lives in [docs/knowledge/](docs/knowledge/) — architecture map, module map, decisions (ADRs), glossary. **Consult it before deep code dives** to answer "where/how/why does X work". When you make a non-obvious decision, add an entry to [docs/knowledge/decisions.md](docs/knowledge/decisions.md).
+
 ## What this is
 
 AI Product Assistant backend (MVP) for a sushi delivery service. Answers user product questions in Russian and returns ranked product cards. NestJS 10 + Fastify, PostgreSQL 15 + pgvector, Drizzle ORM, Vitest. Package manager is **pnpm** (Node >= 22).

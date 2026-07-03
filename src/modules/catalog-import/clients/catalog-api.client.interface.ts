@@ -72,6 +72,37 @@ export interface ProductAdditionalProperties {
   [key: string]: any;
 }
 
+/** One attribute badge/label from the /v1/attributes/PRODUCT catalog endpoint. */
+export interface AttributeApiResponse {
+  id: string;
+  type?: string;
+  attribute: {
+    id: string;
+    name: string;
+    slug?: string;
+    value?: string;
+    backgroundColor?: string;
+    textColor?: string;
+    group?: {
+      name: string;
+      orderIndex?: number;
+      localization?: unknown[];
+    };
+    localization?: unknown[];
+    [key: string]: unknown;
+  };
+  _parent?: string;
+  _createTime?: string;
+  _updateTime?: string;
+  [key: string]: unknown;
+}
+
+/** Attribute value stored on a product record (id + human-readable name). */
+export interface ProductAttributeValue {
+  id: string;
+  name: string;
+}
+
 /**
  * Real venus catalog product shape. КЖБУ/description/ingredients/category name are
  * NESTED (not flat) — see additionalProperties.nutritional, localization[], classifiers[].
@@ -94,6 +125,8 @@ export interface ProductApiResponse {
   localization?: ProductLocalization[];
   classifiers?: ProductClassifier[];
   additionalProperties?: ProductAdditionalProperties;
+  /** Attribute badges assigned to this product. */
+  attributes?: Array<{ id: string; name?: string; [key: string]: unknown }>;
   [key: string]: any;
 }
 
@@ -123,4 +156,5 @@ export interface CatalogApiClient {
     target: string,
     productId: string,
   ): Promise<ProductApiResponse | null>;
+  getAttributes(rn: string): Promise<AttributeApiResponse[]>;
 }
