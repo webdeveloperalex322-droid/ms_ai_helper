@@ -5,6 +5,7 @@ import { CatalogImportModule } from '../catalog-import/catalog-import.module';
 import { CityImportService } from '../catalog-import/services/city-import.service';
 import { ProductImportService } from '../catalog-import/services/product-import.service';
 import { CategoryImportService } from '../catalog-import/services/category-import.service';
+import { AttributeImportService } from '../catalog-import/services/attribute-import.service';
 import { productsResource } from './resources/products.resource';
 import { cityProductsResource } from './resources/city-products.resource';
 import { adminRulesResource } from './resources/admin-rules.resource';
@@ -12,6 +13,7 @@ import { suggestionsResource } from './resources/suggestions.resource';
 import { importJobsResource } from './resources/import-jobs.resource';
 import { citiesResource } from './resources/cities.resource';
 import { categoriesResource } from './resources/categories.resource';
+import { productAttributesResource } from './resources/product-attributes.resource';
 
 // Bypass TypeScript's import()->require() compilation for ESM-only packages
 const esmImport = new Function('modulePath', 'return import(modulePath)') as (
@@ -30,6 +32,7 @@ export class AdminModule implements OnModuleInit {
     private readonly cityImportService: CityImportService,
     private readonly productImportService: ProductImportService,
     private readonly categoryImportService: CategoryImportService,
+    private readonly attributeImportService: AttributeImportService,
   ) {}
 
   async onModuleInit() {
@@ -65,10 +68,12 @@ export class AdminModule implements OnModuleInit {
           this.cityImportService,
           this.productImportService,
           this.categoryImportService,
+          this.attributeImportService,
           defaultRn,
         ),
         citiesResource(db),
         categoriesResource(db),
+        productAttributesResource(db),
       ],
       branding: {
         companyName: 'Sushi Master Admin',

@@ -1,11 +1,45 @@
 import { Injectable } from '@nestjs/common';
 import {
+  AttributeApiResponse,
   CatalogApiClient,
   CategoryApiResponse,
   CityApiResponse,
   ProductApiResponse,
 } from './catalog-api.client.interface';
 const TEST_CITY_BR = '11111111-1111-1111-1111-111111111111';
+
+const MOCK_ATTRIBUTES: AttributeApiResponse[] = [
+  {
+    id: 'mock-attr-001',
+    type: 'PRODUCT',
+    attribute: {
+      id: 'mock-attr-001',
+      name: '8 шт.',
+      group: { name: 'Количество', orderIndex: 1, localization: [] },
+      localization: [],
+    },
+  },
+  {
+    id: 'mock-attr-002',
+    type: 'PRODUCT',
+    attribute: {
+      id: 'mock-attr-002',
+      name: 'Острый',
+      group: { name: 'Вкус', orderIndex: 2, localization: [] },
+      localization: [],
+    },
+  },
+  {
+    id: 'mock-attr-003',
+    type: 'PRODUCT',
+    attribute: {
+      id: 'mock-attr-003',
+      name: 'Классический',
+      group: { name: 'Вкус', orderIndex: 2, localization: [] },
+      localization: [],
+    },
+  },
+];
 
 const MOCK_CATEGORIES: CategoryApiResponse[] = [
   {
@@ -68,6 +102,7 @@ function makeMockProduct(p: {
   fat: number;
   carbohydrates: number;
   imageUrl: string;
+  attributes?: Array<{ id: string; name: string }>;
 }): ProductApiResponse {
   return {
     id: p.id,
@@ -101,6 +136,7 @@ function makeMockProduct(p: {
         composition: { value: p.composition },
       },
     },
+    attributes: p.attributes,
   };
 }
 
@@ -122,6 +158,10 @@ const MOCK_PRODUCTS: ProductApiResponse[] = [
     fat: 14,
     carbohydrates: 38,
     imageUrl: 'https://example.com/philadelphia.jpg',
+    attributes: [
+      { id: 'mock-attr-001', name: '8 шт.' },
+      { id: 'mock-attr-003', name: 'Классический' },
+    ],
   }),
   makeMockProduct({
     id: 'BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB',
@@ -158,6 +198,10 @@ const MOCK_PRODUCTS: ProductApiResponse[] = [
     fat: 12,
     carbohydrates: 37,
     imageUrl: 'https://example.com/salmon-spicy.jpg',
+    attributes: [
+      { id: 'mock-attr-001', name: '8 шт.' },
+      { id: 'mock-attr-002', name: 'Острый' },
+    ],
   }),
   makeMockProduct({
     id: 'DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD',
@@ -237,5 +281,9 @@ export class CatalogApiMockClient implements CatalogApiClient {
     productId: string,
   ): Promise<ProductApiResponse | null> {
     return MOCK_PRODUCTS.find((p) => p.id === productId) ?? null;
+  }
+
+  async getAttributes(_rn: string): Promise<AttributeApiResponse[]> {
+    return MOCK_ATTRIBUTES;
   }
 }

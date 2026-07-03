@@ -37,6 +37,7 @@ export class ProductNormalizerService {
         carbs: nutritional?.carbohydrates != null ? String(nutritional.carbohydrates) : null,
         imageUrl: raw.imageUrl ?? null,
         rawPayload: raw,
+        attributes: this.normalizeAttributes(raw.attributes),
       },
       cityProduct: {
         rn,
@@ -112,6 +113,13 @@ export class ProductNormalizerService {
     if (!this.resolveName(raw)) return false;
     if (price === null || price <= 0) return false;
     return true;
+  }
+
+  private normalizeAttributes(
+    attrs?: Array<{ id: string; name?: string; [key: string]: unknown }>,
+  ): { id: string; name: string }[] {
+    if (!attrs || attrs.length === 0) return [];
+    return attrs.filter((a) => a.id && a.name).map((a) => ({ id: a.id, name: a.name as string }));
   }
 
   private getInvalidReason(raw: ProductApiResponse, price: number | null): string {

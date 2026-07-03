@@ -4,6 +4,7 @@ import { IsString, IsOptional, IsArray, IsEnum } from 'class-validator';
 import { CityImportService } from '../services/city-import.service';
 import { ProductImportService } from '../services/product-import.service';
 import { CategoryImportService } from '../services/category-import.service';
+import { AttributeImportService } from '../services/attribute-import.service';
 
 class ImportCitiesDto {
   @IsString()
@@ -48,6 +49,11 @@ class ImportCategoriesDto {
   slug?: string;
 }
 
+class ImportAttributesDto {
+  @IsString()
+  rn: string;
+}
+
 class ImportByIdsDto {
   @IsString()
   rn: string;
@@ -71,6 +77,7 @@ export class ImportController {
     private readonly cityImportService: CityImportService,
     private readonly productImportService: ProductImportService,
     private readonly categoryImportService: CategoryImportService,
+    private readonly attributeImportService: AttributeImportService,
   ) {}
 
   @Post('cities')
@@ -113,6 +120,14 @@ export class ImportController {
       status: 'completed',
       stats: { imported: result.imported, errors: result.errors, cities: result.cities },
     };
+  }
+
+  @Post('attributes')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Import attribute dictionary for a retail network' })
+  async importAttributes(@Body() body: ImportAttributesDto) {
+    const result = await this.attributeImportService.importAttributes(body.rn);
+    return { job_id: result.jobId, status: 'completed', stats: { imported: result.imported } };
   }
 
   @Post('products/by-ids')

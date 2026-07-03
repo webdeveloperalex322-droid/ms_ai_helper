@@ -36,6 +36,13 @@
       "when": 1782993195206,
       "tag": "0004_soft_lady_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783069815070,
+      "tag": "0005_curious_talos",
+      "breakpoints": true
     }
   ]
 }

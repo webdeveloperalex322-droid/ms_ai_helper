@@ -7,6 +7,7 @@ import {
   numeric,
   integer,
   unique,
+  index,
 } from 'drizzle-orm/pg-core';
 
 export const products = pgTable(
@@ -30,11 +31,13 @@ export const products = pgTable(
     carbs: numeric('carbs', { precision: 10, scale: 2 }),
     imageUrl: text('image_url'),
     rawPayload: jsonb('raw_payload'),
+    attributes: jsonb('attributes').$type<{ id: string; name: string }[]>().default([]),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => ({
     rnExtIdUniq: unique('products_rn_ext_id_uniq').on(table.rn, table.externalProductId),
+    attributesGinIdx: index('products_attributes_gin_idx').using('gin', table.attributes),
   }),
 );
 

@@ -137,6 +137,15 @@ export class HybridRetrieverService {
       }
     }
 
+    if (filters.attributeNames?.length) {
+      const attrs = (product.attributes as { id: string; name: string }[] | null) ?? [];
+      const attrNames = attrs.map((a) => a.name.toLowerCase());
+      const matches = filters.attributeNames.filter((n) =>
+        attrNames.includes(n.toLowerCase()),
+      ).length;
+      slotMatch += matches * 10;
+    }
+
     score += slotMatch * 0.25;
     score += 0.1; // availability bonus (already filtered)
 

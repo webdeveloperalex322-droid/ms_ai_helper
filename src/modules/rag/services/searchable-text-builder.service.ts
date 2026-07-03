@@ -55,6 +55,11 @@ export class SearchableTextBuilderService {
       parts.push(`КБЖУ: ${caloriesParts.join(', ')}`);
     }
 
+    const attributes = product.attributes as { id: string; name: string }[] | null;
+    if (attributes?.length) {
+      parts.push(`Атрибуты: ${attributes.map((a) => a.name).join(', ')}`);
+    }
+
     if (product.cityProduct.price) {
       parts.push(`Цена: ${product.cityProduct.price} RUB`);
     }
@@ -78,6 +83,7 @@ export class SearchableTextBuilderService {
       ingredients: product.ingredients ?? [],
       allergens: product.allergens ?? [],
       tags: product.tags ?? [],
+      attributes: product.attributes ?? [],
     };
   }
 

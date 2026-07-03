@@ -352,6 +352,42 @@ describe('ProductNormalizerService', () => {
       expect(realSample.name).toMatch(/[а-яА-Я]/);
     });
   });
+
+  describe('attributes extraction', () => {
+    it('maps attributes array into id+name pairs', () => {
+      const result = service.normalize(
+        makeRaw({
+          attributes: [
+            { id: 'a-001', name: '8 шт.' },
+            { id: 'a-002', name: 'Острый' },
+          ],
+        }),
+        'rn',
+        'br',
+        'WEB',
+      );
+      expect(result.product.attributes).toEqual([
+        { id: 'a-001', name: '8 шт.' },
+        { id: 'a-002', name: 'Острый' },
+      ]);
+    });
+
+    it('returns empty array when attributes absent', () => {
+      const result = service.normalize(makeRaw({ attributes: undefined }), 'rn', 'br', 'WEB');
+      expect(result.product.attributes).toEqual([]);
+    });
+
+    it('filters out entries missing id or name', () => {
+      const result = service.normalize(
+        makeRaw({ attributes: [{ id: 'a-001', name: 'Ок' }, { id: 'no-name' } as any] }),
+        'rn',
+        'br',
+        'WEB',
+      );
+      expect(result.product.attributes).toHaveLength(1);
+      expect(result.product.attributes![0].id).toBe('a-001');
+    });
+  });
 });
 
 /** Helper: set the nested composition value on a nested raw product. */

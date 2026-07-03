@@ -10,6 +10,7 @@ export interface CatalogFilters {
   excludedIngredients?: string[];
   spicy?: boolean;
   tags?: string[];
+  attributeNames?: string[];
   isAvailable?: boolean;
 }
 

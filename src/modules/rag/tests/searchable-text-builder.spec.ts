@@ -88,4 +88,31 @@ describe('SearchableTextBuilderService', () => {
     expect(meta.price).toBe(890);
     expect(Array.isArray(meta.tags)).toBe(true);
   });
+
+  it('includes attributes in searchable text', () => {
+    const product = makeProduct({
+      attributes: [
+        { id: 'a-001', name: '8 шт.' },
+        { id: 'a-002', name: 'Острый' },
+      ],
+    });
+    const text = service.buildSearchableText(product);
+    expect(text).toContain('Атрибуты: 8 шт., Острый');
+  });
+
+  it('omits Атрибуты line when attributes absent', () => {
+    const text = service.buildSearchableText(makeProduct({ attributes: null }));
+    expect(text).not.toContain('Атрибуты');
+  });
+
+  it('includes attributes array in metadata', () => {
+    const attrs = [{ id: 'a-001', name: 'Классический' }];
+    const meta = service.buildMetadata(makeProduct({ attributes: attrs }));
+    expect(meta.attributes).toEqual(attrs);
+  });
+
+  it('metadata attributes defaults to empty array when absent', () => {
+    const meta = service.buildMetadata(makeProduct({ attributes: null }));
+    expect(meta.attributes).toEqual([]);
+  });
 });

@@ -1,10 +1,12 @@
 import { CityImportService } from '../../catalog-import/services/city-import.service';
 import { ProductImportService } from '../../catalog-import/services/product-import.service';
 import { CategoryImportService } from '../../catalog-import/services/category-import.service';
+import { AttributeImportService } from '../../catalog-import/services/attribute-import.service';
 import {
   createCityImportAction,
   createProductImportAction,
   createCategoryImportAction,
+  createAttributeImportAction,
 } from '../actions/trigger-import.action';
 
 export function importJobsResource(
@@ -12,6 +14,7 @@ export function importJobsResource(
   cityImportService: CityImportService,
   productImportService: ProductImportService,
   categoryImportService: CategoryImportService,
+  attributeImportService: AttributeImportService,
   defaultRn: string,
 ) {
   return {
@@ -27,6 +30,7 @@ export function importJobsResource(
         'trigger-city-import': createCityImportAction(cityImportService, defaultRn),
         'trigger-category-import': createCategoryImportAction(categoryImportService, defaultRn),
         'trigger-product-import': createProductImportAction(productImportService, defaultRn),
+        'trigger-attribute-import': createAttributeImportAction(attributeImportService, defaultRn),
       },
       listProperties: ['job_type', 'rn', 'br', 'status', 'started_at', 'finished_at'],
       filterProperties: ['job_type', 'status', 'rn'],

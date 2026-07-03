@@ -11,3 +11,4 @@ export * from './assistant-suggestions';
 export * from './suggestion-events';
 export * from './admin-rules';
 export * from './import-jobs';
+export * from './product-attributes';
