@@ -1,0 +1,70 @@
+{
+  "id": "61383050-F152-11F0-8679-B1F02C7CC614-WEB",
+  "productId": "61383050-F152-11F0-8679-B1F02C7CC614",
+  "name": "Ролл Чесночный драйв запеченный",
+  "shortName": "Ролл Чесночный драйв",
+  "slug": "roll-chesnochnyj-drajv-zapechennyj",
+  "article": "0000023750",
+  "categoryId": "620E38C0-4149-11EC-B578-65989D437D8E",
+  "mainCategotyId": "5E2E45E0-42FE-11EC-A1A2-B3A738C7AA4A",
+  "target": "WEB",
+  "price": 259,
+  "oldPrice": 0,
+  "isAvailable": true,
+  "productDescription": "Пристегни ремень, мы выходим на максимальные скорости! Сочная курочка и свежий огурец устроили мощный сушиг-рейтинг, где главным топливом выступает пикантный чесночный соус.",
+  "imageUrl": "https://firebasestorage.googleapis.com/v0/b/aypiservis.firebasestorage.app/o/sm-ru%2Fproducts%2F0001f-roll-chesnochnyj-drajv-zapechennyj.jpg?alt=media&token=7b5f3ffb-6820-4553-b7cd-5144c85a2ef5",
+  "localization": [
+    {
+      "language": "ru",
+      "name": "Ролл Чесночный драйв запеченный",
+      "shortName": "Ролл Чесночный драйв запеченный",
+      "productDescription": "Пристегни ремень, мы выходим на максимальные скорости!",
+      "promotionDetails": ""
+    }
+  ],
+  "classifiers": [
+    {
+      "categoryId": "03C4B640-C641-11EC-8EEF-A3EE595C1622",
+      "classifierId": 1032,
+      "name": "Хиты и новинки",
+      "isDefault": false,
+      "isMain": false,
+      "localization": [{ "language": "ru", "name": "Новинки" }],
+      "slug": "new",
+      "target": "WEB"
+    },
+    {
+      "categoryId": "5E2E45E0-42FE-11EC-A1A2-B3A738C7AA4A",
+      "classifierId": 1026,
+      "name": "Роллы и суши",
+      "isDefault": false,
+      "isMain": true,
+      "localization": [{ "language": "ru", "name": "Роллы и суши" }],
+      "slug": "rolly",
+      "target": "WEB"
+    }
+  ],
+  "additionalProperties": {
+    "cookingTime": 150,
+    "isHot": false,
+    "isVegan": false,
+    "pieces": 0,
+    "persons": 0,
+    "nutritional": {
+      "calorie": 260,
+      "carbohydrates": 35.8,
+      "proteins": 5.9,
+      "fat": 10.4,
+      "weight": 250,
+      "composition": {
+        "value": "Крем сыр, курица, огурец, лук фри, чесночный соус, снаги соус, кунжут, рис, нори",
+        "localization": [
+          {
+            "language": "ru",
+            "name": "Крем сыр, курица, огурец, лук фри, чесночный соус, снаги соус, кунжут, рис, нори"
+          }
+        ]
+      }
+    }
+  }
+}

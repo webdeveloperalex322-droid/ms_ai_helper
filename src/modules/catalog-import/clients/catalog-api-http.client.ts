@@ -15,6 +15,15 @@ export class CatalogApiHttpClient implements CatalogApiClient {
   private readonly citiesBaseUrl: string;
   private readonly catalogBaseUrl: string;
 
+  /**
+   * Force UTF-8 JSON decoding so Cyrillic product text is not garbled (mojibake) when the
+   * upstream response omits/misreports its charset. Does not depend on server headers.
+   */
+  private static readonly JSON_UTF8 = {
+    responseType: 'json' as const,
+    responseEncoding: 'utf8' as const,
+  };
+
   constructor(
     private readonly httpService: HttpService,
     private readonly config: ConfigService,
@@ -26,7 +35,9 @@ export class CatalogApiHttpClient implements CatalogApiClient {
   async getCities(rn: string): Promise<CityApiResponse[]> {
     const url = `${this.citiesBaseUrl}/v1/cities?rn=${rn}`;
     this.logger.debug(`GET ${url}`);
-    const response: any = await firstValueFrom(this.httpService.get<CityApiResponse[]>(url));
+    const response: any = await firstValueFrom(
+      this.httpService.get<CityApiResponse[]>(url, CatalogApiHttpClient.JSON_UTF8),
+    );
     return response.data;
   }
 
@@ -37,7 +48,9 @@ export class CatalogApiHttpClient implements CatalogApiClient {
   ): Promise<{ br: string; categories: CategoryApiResponse[] }> {
     const url = `${this.citiesBaseUrl}/v1/init?rn=${rn}&slug=${slug}&target=${target}`;
     this.logger.debug(`GET ${url}`);
-    const response: any = await firstValueFrom(this.httpService.get(url));
+    const response: any = await firstValueFrom(
+      this.httpService.get(url, CatalogApiHttpClient.JSON_UTF8),
+    );
     const data = response.data ?? {};
     return {
       br: data.businessRegion?.id,
@@ -53,7 +66,9 @@ export class CatalogApiHttpClient implements CatalogApiClient {
   ): Promise<ProductApiResponse[]> {
     const url = `${this.catalogBaseUrl}/v1/products?rn=${rn}&br=${br}&target=${target}&category=${categorySlug}&withArchive=false`;
     this.logger.debug(`GET ${url}`);
-    const response: any = await firstValueFrom(this.httpService.get<ProductApiResponse[]>(url));
+    const response: any = await firstValueFrom(
+      this.httpService.get<ProductApiResponse[]>(url, CatalogApiHttpClient.JSON_UTF8),
+    );
     return response.data;
   }
 
@@ -65,7 +80,7 @@ export class CatalogApiHttpClient implements CatalogApiClient {
   ): Promise<ProductApiResponse[]> {
     const url = `${this.catalogBaseUrl}/v1/products/?rn=${rn}&br=${br}&target=${target}`;
     const response: any = await firstValueFrom(
-      this.httpService.post<ProductApiResponse[]>(url, { ids }),
+      this.httpService.post<ProductApiResponse[]>(url, { ids }, CatalogApiHttpClient.JSON_UTF8),
     );
     return response.data;
   }
@@ -78,7 +93,9 @@ export class CatalogApiHttpClient implements CatalogApiClient {
   ): Promise<ProductApiResponse | null> {
     const url = `${this.catalogBaseUrl}/v1/products/${productId}?rn=${rn}&br=${br}&target=${target}&withArchive=false`;
     try {
-      const response: any = await firstValueFrom(this.httpService.get<ProductApiResponse>(url));
+      const response: any = await firstValueFrom(
+        this.httpService.get<ProductApiResponse>(url, CatalogApiHttpClient.JSON_UTF8),
+      );
       return response.data;
     } catch {
       return null;
