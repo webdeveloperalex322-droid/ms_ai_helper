@@ -26,27 +26,74 @@ export interface CategoryApiResponse {
   [key: string]: any;
 }
 
+/** One localized text block; the API ships an array, usually with a single `ru` entry. */
+export interface ProductLocalization {
+  language: string;
+  name?: string;
+  shortName?: string;
+  productDescription?: string;
+  promotionDetails?: string;
+  [key: string]: any;
+}
+
+/** A category/classifier the product belongs to; `categoryName` is derived from these. */
+export interface ProductClassifier {
+  categoryId: string;
+  name?: string;
+  localization?: { language: string; name?: string }[];
+  isMain?: boolean;
+  isDefault?: boolean;
+  slug?: string;
+  target?: string;
+  [key: string]: any;
+}
+
+/** Nutrition (КЖБУ) + composition, nested under additionalProperties in the real API. */
+export interface ProductNutritional {
+  /** kcal (note the singular API key) */
+  calorie?: number;
+  proteins?: number;
+  fat?: number;
+  /** carbs (note the API key spelling) */
+  carbohydrates?: number;
+  weight?: number;
+  composition?: {
+    /** comma-separated ingredient string */
+    value?: string;
+    localization?: { language: string; name?: string }[];
+  };
+  [key: string]: any;
+}
+
+export interface ProductAdditionalProperties {
+  pieces?: number;
+  cookingTime?: number;
+  nutritional?: ProductNutritional;
+  [key: string]: any;
+}
+
+/**
+ * Real venus catalog product shape. КЖБУ/description/ingredients/category name are
+ * NESTED (not flat) — see additionalProperties.nutritional, localization[], classifiers[].
+ * ProductNormalizerService reads these paths; the full object is persisted as rawPayload.
+ */
 export interface ProductApiResponse {
+  /** Target-suffixed id, e.g. "<guid>-WEB". */
   id: string;
   /** Plain product GUID, shared across cities/targets; `id` is this value suffixed with target. */
   productId?: string;
   name: string;
   categoryId?: string;
-  categoryName?: string;
-  description?: string;
+  /** NOTE: source API misspelling ("Categoty") preserved intentionally — do not "fix". */
+  mainCategotyId?: string;
+  productDescription?: string;
   price?: number;
   oldPrice?: number;
-  ingredients?: string[];
-  allergens?: string[];
-  tags?: string[];
-  weight?: number;
-  pieces?: number;
-  calories?: number;
-  protein?: number;
-  fat?: number;
-  carbs?: number;
   imageUrl?: string;
   isAvailable?: boolean;
+  localization?: ProductLocalization[];
+  classifiers?: ProductClassifier[];
+  additionalProperties?: ProductAdditionalProperties;
   [key: string]: any;
 }
 

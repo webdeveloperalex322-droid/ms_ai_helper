@@ -7,10 +7,17 @@ const MOCK_RAW_PRODUCT = {
   name: 'Ролл Лосось',
   categoryId: 'roll',
   price: 499,
-  ingredients: ['лосось', 'рис'],
-  allergens: ['рыба'],
-  tags: ['лосось'],
   isAvailable: true,
+  additionalProperties: {
+    nutritional: {
+      calorie: 300,
+      proteins: 12,
+      fat: 10,
+      carbohydrates: 30,
+      weight: 240,
+      composition: { value: 'лосось, рис' },
+    },
+  },
 };
 
 function makeApiClient(products = [MOCK_RAW_PRODUCT]) {

@@ -67,14 +67,18 @@ describe('CatalogApiMockClient', () => {
     expect(result).toBeNull();
   });
 
-  it('all mock products have required fields', async () => {
+  it('all mock products have required fields (real nested shape)', async () => {
     const all = await client.getProductsByCategory('rn', 'br', 'WEB', '');
     all.forEach((p) => {
       expect(p.id).toBeTruthy();
       expect(p.name).toBeTruthy();
       expect(typeof p.price).toBe('number');
       expect(p.price).toBeGreaterThan(0);
-      expect(Array.isArray(p.ingredients)).toBe(true);
+      // КЖБУ + ingredients live nested under additionalProperties.nutritional
+      expect(p.additionalProperties?.nutritional?.calorie).toBeGreaterThan(0);
+      expect(typeof p.additionalProperties?.nutritional?.composition?.value).toBe('string');
+      // categoryName derives from classifiers
+      expect(p.classifiers?.length).toBeGreaterThan(0);
     });
   });
 });

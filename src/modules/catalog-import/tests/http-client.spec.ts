@@ -58,4 +58,18 @@ describe('CatalogApiHttpClient', () => {
     const result = await client.getCategories('rn1', 'tyumen', 'WEB');
     expect(result.categories).toEqual([]);
   });
+
+  it('requests UTF-8 JSON decoding so Cyrillic is not mangled (mojibake)', async () => {
+    await client.getProductsByCategory('rn1', 'br1', 'WEB', 'rolly');
+    const config = http.get.mock.calls[0][1] as any;
+    expect(config).toMatchObject({ responseType: 'json', responseEncoding: 'utf8' });
+  });
+
+  it('passes UTF-8 Cyrillic product text through unchanged', async () => {
+    http = makeHttpService([{ id: 'P1', name: 'Ролл Чесночный драйв', price: 259 }]);
+    client = new CatalogApiHttpClient(http.service, makeConfig());
+    const products = await client.getProductsByCategory('rn1', 'br1', 'WEB', 'rolly');
+    expect(products[0].name).toBe('Ролл Чесночный драйв');
+    expect(products[0].name).not.toContain('Ð');
+  });
 });
