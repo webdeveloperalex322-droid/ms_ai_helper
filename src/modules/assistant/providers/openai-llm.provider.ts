@@ -7,7 +7,11 @@ import {
   RerankerInput,
   LLMRerankerResult,
 } from './llm.provider.interface';
-import { LLM_CLIENT_TOKEN, LlmClient, LlmClientError } from '../../../common/llm/llm-client.interface';
+import {
+  LLM_CLIENT_TOKEN,
+  LlmClient,
+  LlmClientError,
+} from '../../../common/llm/llm-client.interface';
 import { buildIntentParseMessages, buildRerankMessages } from '../../../common/llm/llm-prompts';
 import { parseIntentResponse, parseRerankResponse } from '../../../common/llm/llm-response.parser';
 

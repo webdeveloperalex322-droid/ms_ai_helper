@@ -33,7 +33,11 @@ const configSchema = z.object({
 
   ADMIN_USER: z.string().email().optional().default('admin@example.com'),
   ADMIN_PASSWORD: z.string().min(8).optional().default('changeme123'),
-  ADMIN_COOKIE_SECRET: z.string().min(32).optional().default('dev-cookie-secret-replace-in-prod-!!!'),
+  ADMIN_COOKIE_SECRET: z
+    .string()
+    .min(32)
+    .optional()
+    .default('dev-cookie-secret-replace-in-prod-!!!'),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
@@ -47,7 +51,9 @@ export function validateConfig(config: Record<string, unknown>): AppConfig {
 
   const data = result.data;
   if (data.LLM_PROVIDER === 'openai' && !data.OPENAI_API_KEY) {
-    throw new Error('Configuration validation error: OPENAI_API_KEY is required when LLM_PROVIDER=openai');
+    throw new Error(
+      'Configuration validation error: OPENAI_API_KEY is required when LLM_PROVIDER=openai',
+    );
   }
   if (data.EMBEDDING_PROVIDER === 'openai' && !data.OPENAI_API_KEY) {
     throw new Error(

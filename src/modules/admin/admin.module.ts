@@ -14,7 +14,9 @@ import { citiesResource } from './resources/cities.resource';
 import { categoriesResource } from './resources/categories.resource';
 
 // Bypass TypeScript's import()->require() compilation for ESM-only packages
-const esmImport = new Function('modulePath', 'return import(modulePath)') as (m: string) => Promise<any>;
+const esmImport = new Function('modulePath', 'return import(modulePath)') as (
+  m: string,
+) => Promise<any>;
 
 @Module({
   imports: [CatalogImportModule],

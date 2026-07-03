@@ -1,4 +1,8 @@
-import { IntentParseInput, ProductCandidate, RerankerInput } from '../../modules/assistant/providers/llm.provider.interface';
+import {
+  IntentParseInput,
+  ProductCandidate,
+  RerankerInput,
+} from '../../modules/assistant/providers/llm.provider.interface';
 
 const INTENT_VALUES = [
   'product_recommendation',
