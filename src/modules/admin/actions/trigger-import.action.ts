@@ -1,6 +1,7 @@
 import { CityImportService } from '../../catalog-import/services/city-import.service';
 import { ProductImportService } from '../../catalog-import/services/product-import.service';
 import { CategoryImportService } from '../../catalog-import/services/category-import.service';
+import { AttributeImportService } from '../../catalog-import/services/attribute-import.service';
 
 export function createCityImportAction(cityImportService: CityImportService, defaultRn: string) {
   return {
@@ -83,6 +84,34 @@ export function createProductImportAction(
         };
       } catch (err: any) {
         return { notice: { message: `Ошибка импорта товаров: ${err.message}`, type: 'error' } };
+      }
+    },
+  };
+}
+
+export function createAttributeImportAction(
+  attributeImportService: AttributeImportService,
+  defaultRn: string,
+) {
+  return {
+    actionType: 'resource',
+    icon: 'List',
+    label: 'Запустить импорт атрибутов',
+    component: false,
+    isAccessible: true,
+    handler: async (request: any, _response: any, context: any) => {
+      const rn = request.payload?.rn || defaultRn;
+      try {
+        const result = await attributeImportService.importAttributes(rn);
+        return {
+          notice: {
+            message: `Импорт атрибутов завершён. Job ID: ${result.jobId}, импортировано: ${result.imported}`,
+            type: 'success',
+          },
+          redirectUrl: `${context._admin.options.rootPath}/resources/import_jobs`,
+        };
+      } catch (err: any) {
+        return { notice: { message: `Ошибка импорта атрибутов: ${err.message}`, type: 'error' } };
       }
     },
   };
