@@ -85,7 +85,13 @@ describe('CategoryImportService', () => {
       br: 'br-001',
       categories: [
         { categoryId: 'CAT-A', slug: 'rolly', name: 'Роллы', isDefault: false, orderIndex: 1 },
-        { categoryId: 'CAT-B', slug: 'rolly', name: 'Роллы (дубль)', isDefault: false, orderIndex: 2 },
+        {
+          categoryId: 'CAT-B',
+          slug: 'rolly',
+          name: 'Роллы (дубль)',
+          isDefault: false,
+          orderIndex: 2,
+        },
         { categoryId: 'CAT-C', slug: 'main', name: 'Для вас', isDefault: false, orderIndex: 3 },
       ],
     });

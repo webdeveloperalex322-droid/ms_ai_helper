@@ -58,7 +58,10 @@ export function createCategoryImportAction(
   };
 }
 
-export function createProductImportAction(productImportService: ProductImportService, defaultRn: string) {
+export function createProductImportAction(
+  productImportService: ProductImportService,
+  defaultRn: string,
+) {
   return {
     actionType: 'resource',
     icon: 'Refresh',

@@ -2,12 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import OpenAI from 'openai';
-import {
-  APIConnectionError,
-  APIError,
-  AuthenticationError,
-  RateLimitError,
-} from 'openai/error';
+import { APIConnectionError, APIError, AuthenticationError, RateLimitError } from 'openai/error';
 import {
   BalanceResult,
   ChatCompletionOptions,
@@ -148,7 +143,9 @@ export class AitunnelOpenAIClientService implements LlmClient, OnModuleInit {
     }
   }
 
-  private toSdkMessages(messages: ChatMessage[]): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
+  private toSdkMessages(
+    messages: ChatMessage[],
+  ): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
     return messages.map((message) => ({
       role: message.role,
       content: message.content,
