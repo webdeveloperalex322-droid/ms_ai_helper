@@ -1,4 +1,5 @@
 import { Module, OnModuleInit, Logger } from '@nestjs/common';
+import * as path from 'path';
 import { HttpAdapterHost } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { CatalogImportModule } from '../catalog-import/catalog-import.module';
@@ -45,7 +46,7 @@ export class AdminModule implements OnModuleInit {
     const dbUrlParsed = new URL(databaseUrl);
     const database = dbUrlParsed.pathname.slice(1);
 
-    const { default: AdminJS } = await esmImport('adminjs');
+    const { default: AdminJS, ComponentLoader } = await esmImport('adminjs');
     const { Database, Resource, Adapter } = await esmImport('@adminjs/sql');
     const { buildAuthenticatedRouter } = await esmImport('@adminjs/fastify');
 
@@ -56,10 +57,17 @@ export class AdminModule implements OnModuleInit {
       database,
     }).init();
 
+    const componentLoader = new ComponentLoader();
+    const imagePreviewComponent = componentLoader.add(
+      'ImagePreview',
+      path.resolve(process.cwd(), 'src/modules/admin/components/image-preview'),
+    );
+
     const admin = new AdminJS({
       rootPath: '/admin',
+      componentLoader,
       resources: [
-        productsResource(db),
+        productsResource(db, { imagePreview: imagePreviewComponent }),
         cityProductsResource(db),
         adminRulesResource(db),
         suggestionsResource(db),

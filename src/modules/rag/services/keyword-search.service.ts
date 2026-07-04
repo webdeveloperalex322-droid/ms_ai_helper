@@ -42,6 +42,8 @@ export class KeywordSearchService {
           AND cp.target = ${target}
           AND cp.is_available = true
           AND cp.is_valid = true
+        JOIN cities c ON c.br = cp.br AND c.rn = cp.rn AND c.is_active = true
+        JOIN products p ON p.id = cp.product_id AND p.is_active = true
         WHERE pc.rn = ${rn}::uuid
           AND pc.br = ${br}::uuid
           AND pc.target = ${target}
@@ -80,6 +82,8 @@ export class KeywordSearchService {
         AND cp.br = ${br}::uuid
         AND cp.target = ${target}
         AND cp.is_available = true
+      JOIN cities c ON c.br = cp.br AND c.rn = cp.rn AND c.is_active = true
+      JOIN products p ON p.id = cp.product_id AND p.is_active = true
       WHERE pc.rn = ${rn}::uuid
         AND pc.br = ${br}::uuid
         AND pc.target = ${target}

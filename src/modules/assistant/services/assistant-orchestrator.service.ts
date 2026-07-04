@@ -1,13 +1,13 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DATABASE_TOKEN, DrizzleDB } from '../../../database/database.module';
-import { aiLogs, assistantSuggestions } from '../../../database/schema';
+import { aiLogs, assistantSuggestions, cities, cityProducts, products } from '../../../database/schema';
 import { IntentSlotParserService } from './intent-slot-parser.service';
 import { ShortlistBuilderService } from './shortlist-builder.service';
 import { ResponseValidatorService } from './response-validator.service';
 import { FallbackService } from './fallback.service';
 import { LLM_PROVIDER_TOKEN, LLMProvider, IntentResult } from '../providers/llm.provider.interface';
-import { eq } from 'drizzle-orm';
+import { eq, and, count } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 
 export interface AssistantRequest {
@@ -58,6 +58,34 @@ export class AssistantOrchestratorService {
   async handle(request: AssistantRequest): Promise<AssistantResponse> {
     const requestId = request.requestId ?? randomUUID();
     const start = Date.now();
+
+    // Pre-flight: city active check (FR-003, FR-010)
+    const [cityRow] = await this.db
+      .select({ isActive: cities.isActive })
+      .from(cities)
+      .where(and(eq(cities.rn, request.rn), eq(cities.br, request.br)))
+      .limit(1);
+    if (!cityRow?.isActive) {
+      return this.buildEmptyStatusResponse(requestId);
+    }
+
+    // Pre-flight: active products count check (FR-004, FR-010)
+    const [countRow] = await this.db
+      .select({ total: count() })
+      .from(products)
+      .innerJoin(cityProducts, eq(cityProducts.productId, products.id))
+      .where(
+        and(
+          eq(cityProducts.rn, request.rn),
+          eq(cityProducts.br, request.br),
+          eq(cityProducts.target, request.target),
+          eq(products.isActive, true),
+          eq(cityProducts.isAvailable, true),
+        ),
+      );
+    if ((countRow?.total ?? 0) === 0) {
+      return this.buildEmptyStatusResponse(requestId);
+    }
 
     let intentResult: IntentResult;
     let retrievalQuery: string | undefined;
@@ -325,6 +353,18 @@ export class AssistantOrchestratorService {
     );
 
     return cards.filter(Boolean) as NonNullable<(typeof cards)[number]>[];
+  }
+
+  private buildEmptyStatusResponse(requestId: string): AssistantResponse {
+    return {
+      request_id: requestId,
+      reply_text: '',
+      cards: [],
+      quick_replies: [],
+      actions: [],
+      need_clarification: false,
+      clarification_question: null,
+    };
   }
 
   private buildResponse(requestId: string, fallbackResp: any): AssistantResponse {

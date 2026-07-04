@@ -1,4 +1,4 @@
-export function productsResource(db: any) {
+export function productsResource(db: any, components: { imagePreview?: string } = {}) {
   return {
     resource: db.table('products'),
     options: {
@@ -7,8 +7,8 @@ export function productsResource(db: any) {
         new: { isAccessible: false },
         delete: { isAccessible: false },
       },
-      listProperties: ['name', 'category_name', 'rn', 'updated_at'],
-      filterProperties: ['name', 'category_name', 'rn'],
+      listProperties: ['name', 'category_name', 'rn', 'is_active', 'updated_at'],
+      filterProperties: ['name', 'category_name', 'rn', 'is_active'],
       showProperties: [
         'id',
         'rn',
@@ -26,10 +26,12 @@ export function productsResource(db: any) {
         'fat',
         'carbs',
         'image_url',
+        'attributes',
+        'is_active',
         'created_at',
         'updated_at',
       ],
-      editProperties: ['name', 'description', 'ingredients', 'allergens', 'tags'],
+      editProperties: ['name', 'description', 'ingredients', 'allergens', 'tags', 'is_active'],
       properties: {
         id: { label: 'ID' },
         rn: { label: 'Торговая сеть (rn)' },
@@ -46,7 +48,12 @@ export function productsResource(db: any) {
         protein: { label: 'Белки' },
         fat: { label: 'Жиры' },
         carbs: { label: 'Углеводы' },
-        image_url: { label: 'URL изображения' },
+        image_url: {
+          label: 'URL изображения',
+          ...(components.imagePreview ? { components: { show: components.imagePreview } } : {}),
+        },
+        attributes: { label: 'Атрибуты' },
+        is_active: { label: 'Активен' },
         raw_payload: { isVisible: { list: false, show: false, edit: false, filter: false } },
         created_at: { label: 'Создан' },
         updated_at: { label: 'Обновлён' },

@@ -6,6 +6,7 @@ import {
   jsonb,
   numeric,
   integer,
+  boolean,
   unique,
   index,
 } from 'drizzle-orm/pg-core';
@@ -30,6 +31,7 @@ export const products = pgTable(
     fat: numeric('fat', { precision: 10, scale: 2 }),
     carbs: numeric('carbs', { precision: 10, scale: 2 }),
     imageUrl: text('image_url'),
+    isActive: boolean('is_active').notNull().default(true),
     rawPayload: jsonb('raw_payload'),
     attributes: jsonb('attributes').$type<{ id: string; name: string }[]>().default([]),
     createdAt: timestamp('created_at').notNull().defaultNow(),

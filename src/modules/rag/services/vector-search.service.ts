@@ -40,6 +40,8 @@ export class VectorSearchService {
         AND cp.target = ${filters.target}
         AND cp.is_available = true
         AND cp.is_valid = true
+      JOIN cities c ON c.br = cp.br AND c.rn = cp.rn AND c.is_active = true
+      JOIN products p ON p.id = cp.product_id AND p.is_active = true
       WHERE pc.rn = ${filters.rn}::uuid
         AND pc.br = ${filters.br}::uuid
         AND pc.target = ${filters.target}

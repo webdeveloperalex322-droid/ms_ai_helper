@@ -9,6 +9,7 @@ import { ProductNormalizerService } from './product-normalizer.service';
 import { ImportJobService } from './import-job.service';
 import { randomUUID } from 'crypto';
 import { eq, and, asc, notInArray } from 'drizzle-orm';
+import { productAttributes } from '../../../database/schema';
 
 export interface ProductImportOptions {
   rn: string;
@@ -86,6 +87,7 @@ export class ProductImportService {
 
   private async importFull(options: ProductImportOptions, jobId: string): Promise<number> {
     const targetBrs = options.br ? [options.br] : await this.getActiveBrs(options.rn);
+    const attrMap = await this.loadAttributeMap(options.rn);
 
     let totalImported = 0;
 
@@ -108,7 +110,7 @@ export class ProductImportService {
           );
 
           for (const raw of rawProducts) {
-            await this.upsertProduct(raw, options.rn, br, options.target);
+            await this.upsertProduct(raw, options.rn, br, options.target, attrMap);
             seenExternalIds.push(raw.id);
             totalImported++;
           }
@@ -178,6 +180,7 @@ export class ProductImportService {
   private async importByIds(options: ProductImportOptions, jobId: string): Promise<number> {
     const ids = options.ids!;
     const targetBrs = options.br ? [options.br] : await this.getActiveBrs(options.rn);
+    const attrMap = await this.loadAttributeMap(options.rn);
     let imported = 0;
 
     for (const br of targetBrs) {
@@ -186,7 +189,7 @@ export class ProductImportService {
         this.apiClient.getProductsByIds(options.rn, br, options.target, ids),
       );
       for (const raw of rawProducts) {
-        await this.upsertProduct(raw, options.rn, br, options.target);
+        await this.upsertProduct(raw, options.rn, br, options.target, attrMap);
         imported++;
       }
     }
@@ -201,8 +204,15 @@ export class ProductImportService {
     return { jobId: `dry-run-${randomUUID()}`, imported: 0 };
   }
 
-  private async upsertProduct(raw: any, rn: string, br: string, target: string): Promise<void> {
-    const normalized = this.normalizer.normalize(raw, rn, br, target);
+  private async upsertProduct(
+    raw: any,
+    rn: string,
+    br: string,
+    target: string,
+    attrMap: Map<string, string> = new Map(),
+  ): Promise<void> {
+    const enriched = this.enrichAttributes(raw, attrMap);
+    const normalized = this.normalizer.normalize(enriched, rn, br, target);
 
     const [product] = await this.db
       .insert(products)
@@ -288,6 +298,25 @@ export class ProductImportService {
       .from(cities)
       .where(and(eq(cities.rn, rn), eq(cities.isActive, true)));
     return activeCities.map((c) => c.br);
+  }
+
+  private async loadAttributeMap(rn: string): Promise<Map<string, string>> {
+    const rows = await this.db
+      .select({ externalId: productAttributes.externalId, name: productAttributes.name })
+      .from(productAttributes)
+      .where(and(eq(productAttributes.rn, rn), eq(productAttributes.isActive, true)));
+    return new Map(rows.map((r) => [r.externalId, r.name]));
+  }
+
+  private enrichAttributes(raw: any, attrMap: Map<string, string>): any {
+    if (!raw.attributes?.length || attrMap.size === 0) return raw;
+    return {
+      ...raw,
+      attributes: raw.attributes.map((a: any) => ({
+        ...a,
+        name: a.name ?? attrMap.get(a.id),
+      })),
+    };
   }
 
   private async fetchWithRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {

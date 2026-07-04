@@ -34,4 +34,6 @@
 - City `isActive` already exists in schema — no data model change needed for cities
 - Product `isActive` is new field — migration required
 - Import filtering for cities already implemented; spec confirms it must remain
-- All items pass; ready for `/speckit-clarify` or `/speckit-plan`
+- Clarified 2026-07-04: all-products-filtered → empty array HTTP 200 (not FallbackService)
+- Clarified 2026-07-04: city re-enable triggers full resync on next import run
+- All items pass; ready for `/speckit-plan`

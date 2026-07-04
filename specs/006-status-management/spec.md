@@ -8,6 +8,13 @@
 
 **Input**: User description: "Add status field to products and cities/branches. Disabled city stops participating in API and product import. Disabled product stops participating in API responses."
 
+## Clarifications
+
+### Session 2026-07-04
+
+- Q: When a city is active but all its products are disabled, what should the API return? → A: Return empty product cards array with HTTP 200, no fallback text.
+- Q: When a city is re-enabled after being disabled, what should the next import run do? → A: Full resync — import fetches all products for that city from venus API on the next run.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Disable a City/Branch (Priority: P1)
@@ -21,7 +28,7 @@ An operator opens the admin panel and disables a city (branch). After that, the 
 **Acceptance Scenarios**:
 
 1. **Given** a city with `isActive = true`, **When** operator sets it to `isActive = false` via admin panel, **Then** the city record is saved with `isActive = false` and admin UI reflects the change.
-2. **Given** a city with `isActive = false`, **When** a client calls the product-answer API with that city's `br`, **Then** the response returns no products (empty or fallback).
+2. **Given** a city with `isActive = false`, **When** a client calls the product-answer API with that city's `br`, **Then** the response returns an empty product cards array with HTTP 200 (no fallback text).
 3. **Given** a city with `isActive = false`, **When** a product import job runs, **Then** the import skips that city and logs it as skipped (no products imported for that `br`).
 4. **Given** a city with `isActive = false` that is re-enabled (`isActive = true`), **When** a product query is made, **Then** products for that city appear again in results.
 
@@ -61,10 +68,9 @@ An operator can filter cities or products by their active/inactive status in the
 
 ### Edge Cases
 
-- What if all products in a city are disabled — does the API return a fallback response or an empty list?
-- What if a city is enabled but all its products are disabled — same question.
-- What happens during import when a city is re-enabled after being disabled — does import resume on next run?
-- Does disabling a city affect category import as well as product import?
+- **Resolved**: When all products are filtered out (city disabled, or city active but all products disabled) — API returns empty product cards array with HTTP 200, no fallback text.
+- **Resolved**: When a city is re-enabled, the next import run performs a full resync (fetches all products for that city from venus API), regardless of how long it was disabled.
+- Does disabling a city affect category import as well as product import? (FR-007 states yes; must remain enforced.)
 
 ## Requirements *(mandatory)*
 
@@ -78,7 +84,8 @@ An operator can filter cities or products by their active/inactive status in the
 - **FR-006**: Product import job MUST skip cities where `isActive = false` (currently implemented via `getActiveBrs()`; must remain enforced).
 - **FR-007**: Category import job MUST also skip inactive cities (currently implemented; must remain enforced).
 - **FR-008**: Admin panel MUST display `isActive` status for cities and products in list views with filter capability.
-- **FR-009**: Disabling then re-enabling a city or product MUST restore full participation in API and next import run without additional manual steps.
+- **FR-009**: Disabling then re-enabling a city MUST restore full participation in API immediately and trigger a full product resync for that city on the next scheduled import run (no manual intervention required). Re-enabling a product restores it in API results within one request.
+- **FR-010**: When all products are excluded by active filters (city inactive, or all products inactive), the API MUST return an empty product cards array with HTTP 200 — not a FallbackService response.
 
 ### Key Entities
 
@@ -103,4 +110,4 @@ An operator can filter cities or products by their active/inactive status in the
 - Default for new `products.isActive` field is `true` (all existing products remain active after migration).
 - Import does not change `products.isActive` — it is set only by operators via admin panel.
 - No REST API endpoint outside AdminJS is needed for toggling status (admin panel is sufficient for MVP).
-- Fallback behavior when all products are filtered out follows existing fallback logic in `FallbackService`.
+- When all products are filtered out by active status, API returns empty product cards array (HTTP 200), NOT a FallbackService response. FallbackService is reserved for LLM timeout/error paths only.

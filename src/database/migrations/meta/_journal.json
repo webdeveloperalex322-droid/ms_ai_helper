@@ -43,6 +43,13 @@
       "when": 1783069815070,
       "tag": "0005_curious_talos",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783168952166,
+      "tag": "0006_dashing_gideon",
+      "breakpoints": true
     }
   ]
 }

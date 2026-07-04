@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { DATABASE_TOKEN, DrizzleDB } from '../../../database/database.module';
-import { products, cityProducts, Product, CityProduct } from '../../../database/schema';
+import { products, cityProducts, cities, Product, CityProduct } from '../../../database/schema';
 import { eq, and, lte } from 'drizzle-orm';
 
 export interface CatalogFilters {
@@ -33,6 +33,8 @@ export class CatalogService {
       eq(cityProducts.br, br),
       eq(cityProducts.target, target),
       eq(cityProducts.isValid, true),
+      eq(cities.isActive, true),
+      eq(products.isActive, true),
     ];
 
     if (filters.isAvailable !== false) {
@@ -51,6 +53,7 @@ export class CatalogService {
       .select()
       .from(cityProducts)
       .innerJoin(products, eq(cityProducts.productId, products.id))
+      .innerJoin(cities, and(eq(cities.br, cityProducts.br), eq(cities.rn, cityProducts.rn)))
       .where(and(...conditions));
 
     let results = rows.map((r) => ({ ...r.products, cityProduct: r.city_products }));

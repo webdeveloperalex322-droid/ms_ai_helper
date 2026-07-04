@@ -6,13 +6,19 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import fastifyStatic from '@fastify/static';
+import * as path from 'path';
 import 'reflect-metadata';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestFastifyApplication>(
-    AppModule,
-    new FastifyAdapter({ logger: false }),
-  );
+  const adapter = new FastifyAdapter({ logger: false });
+  await adapter.getInstance().register(fastifyStatic as any, {
+    root: path.join(process.cwd(), 'public'),
+    prefix: '/public/',
+    decorateReply: false,
+  });
+
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter);
 
   const config = app.get(ConfigService);
   const port = config.get<number>('PORT') ?? 3000;
