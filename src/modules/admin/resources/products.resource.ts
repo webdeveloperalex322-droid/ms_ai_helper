@@ -1,4 +1,4 @@
-export function productsResource(db: any, components: { imagePreview?: string } = {}) {
+export function productsResource(db: any, components: { imagePreview?: string; attributesShow?: string; ingredientsShow?: string } = {}) {
   return {
     resource: db.table('products'),
     options: {
@@ -39,7 +39,11 @@ export function productsResource(db: any, components: { imagePreview?: string } 
         name: { label: 'Название' },
         category_name: { label: 'Категория' },
         description: { label: 'Описание' },
-        ingredients: { label: 'Состав', type: 'textarea' },
+        ingredients: {
+          label: 'Состав',
+          type: 'textarea',
+          ...(components.ingredientsShow ? { components: { show: components.ingredientsShow } } : {}),
+        },
         allergens: { label: 'Аллергены', type: 'textarea' },
         tags: { label: 'Теги', type: 'textarea' },
         weight: { label: 'Вес (г)' },
@@ -52,7 +56,10 @@ export function productsResource(db: any, components: { imagePreview?: string } 
           label: 'URL изображения',
           ...(components.imagePreview ? { components: { show: components.imagePreview } } : {}),
         },
-        attributes: { label: 'Атрибуты' },
+        attributes: {
+          label: 'Атрибуты',
+          ...(components.attributesShow ? { components: { show: components.attributesShow } } : {}),
+        },
         is_active: { label: 'Активен' },
         raw_payload: { isVisible: { list: false, show: false, edit: false, filter: false } },
         created_at: { label: 'Создан' },

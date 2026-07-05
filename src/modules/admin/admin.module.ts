@@ -62,12 +62,20 @@ export class AdminModule implements OnModuleInit {
       'ImagePreview',
       path.resolve(process.cwd(), 'src/modules/admin/components/image-preview'),
     );
+    const attributesShowComponent = componentLoader.add(
+      'AttributesShow',
+      path.resolve(process.cwd(), 'src/modules/admin/components/attributes-show'),
+    );
+    const ingredientsShowComponent = componentLoader.add(
+      'IngredientsShow',
+      path.resolve(process.cwd(), 'src/modules/admin/components/ingredients-show'),
+    );
 
     const admin = new AdminJS({
       rootPath: '/admin',
       componentLoader,
       resources: [
-        productsResource(db, { imagePreview: imagePreviewComponent }),
+        productsResource(db, { imagePreview: imagePreviewComponent, attributesShow: attributesShowComponent, ingredientsShow: ingredientsShowComponent }),
         cityProductsResource(db),
         adminRulesResource(db),
         suggestionsResource(db),
@@ -89,6 +97,12 @@ export class AdminModule implements OnModuleInit {
         favicon: '',
       },
     });
+
+    if (process.env.NODE_ENV === 'production') {
+      await admin.initialize();
+    } else {
+      await admin.watch();
+    }
 
     const { httpAdapter } = this.httpAdapterHost;
     const fastify = httpAdapter.getInstance();
