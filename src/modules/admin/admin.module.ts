@@ -1,5 +1,6 @@
 import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import * as path from 'path';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { HttpAdapterHost } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { CatalogImportModule } from '../catalog-import/catalog-import.module';
@@ -20,6 +21,21 @@ import { productAttributesResource } from './resources/product-attributes.resour
 const esmImport = new Function('modulePath', 'return import(modulePath)') as (
   m: string,
 ) => Promise<any>;
+
+/**
+ * Constant-time string comparison. Hashing first equalises the lengths —
+ * timingSafeEqual throws when the buffers differ in size, and a thrown error
+ * would itself be a distinguishable path.
+ */
+function safeEquals(a: string, b: string): boolean {
+  const left = createHash('sha256')
+    .update(a ?? '', 'utf8')
+    .digest();
+  const right = createHash('sha256')
+    .update(b ?? '', 'utf8')
+    .digest();
+  return timingSafeEqual(left, right);
+}
 
 @Module({
   imports: [CatalogImportModule],
@@ -75,7 +91,11 @@ export class AdminModule implements OnModuleInit {
       rootPath: '/admin',
       componentLoader,
       resources: [
-        productsResource(db, { imagePreview: imagePreviewComponent, attributesShow: attributesShowComponent, ingredientsShow: ingredientsShowComponent }),
+        productsResource(db, {
+          imagePreview: imagePreviewComponent,
+          attributesShow: attributesShowComponent,
+          ingredientsShow: ingredientsShowComponent,
+        }),
         cityProductsResource(db),
         adminRulesResource(db),
         suggestionsResource(db),
@@ -111,21 +131,32 @@ export class AdminModule implements OnModuleInit {
     // @adminjs/fastify also registers it via @fastify/formbody — remove first to avoid conflict
     fastify.removeContentTypeParser('application/x-www-form-urlencoded');
 
+    const isProduction = process.env.NODE_ENV === 'production';
+
     await buildAuthenticatedRouter(
       admin,
       {
         authenticate: async (email: string, password: string) => {
-          if (email === adminUser && password === adminPassword) {
-            return { email };
-          }
-          return null;
+          // Both comparisons always run and neither short-circuits, so the
+          // response time says nothing about which half was wrong. A single
+          // null return keeps the failure reason opaque to the caller too.
+          const emailOk = safeEquals(email, adminUser);
+          const passwordOk = safeEquals(password, adminPassword);
+          return emailOk && passwordOk ? { email } : null;
         },
         cookieName: 'adminjs',
         cookiePassword: cookieSecret,
       },
       fastify,
       {
-        cookie: { secure: false },
+        cookie: {
+          // nginx terminates TLS in production, so the session cookie must not
+          // be allowed to travel over plain HTTP. Tied to the mode rather than
+          // hardcoded true, so local HTTP development still works.
+          secure: isProduction,
+          httpOnly: true,
+          sameSite: 'lax',
+        },
       },
     );
 

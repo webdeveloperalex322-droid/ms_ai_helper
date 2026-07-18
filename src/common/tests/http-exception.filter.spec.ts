@@ -41,4 +41,23 @@ describe('AllExceptionsFilter', () => {
     const payload = send.mock.calls[0][0];
     expect(payload.error.code).toBe('VALIDATION_ERROR');
   });
+
+  it('returns a contract-compliant body for a throttled request', () => {
+    // ThrottlerException carries its response as a plain string, which used to
+    // fall through to the generic branch: the client got INTERNAL_ERROR plus
+    // the exception's class name. Caught by hitting the real running app.
+    const filter = new AllExceptionsFilter();
+    const { host, status, send } = makeMocks();
+
+    filter.catch(
+      new HttpException('ThrottlerException: Too Many Requests', HttpStatus.TOO_MANY_REQUESTS),
+      host,
+    );
+
+    expect(status).toHaveBeenCalledWith(429);
+    const payload = send.mock.calls[0][0];
+    expect(payload.error.code).toBe('TOO_MANY_REQUESTS');
+    expect(payload.error.message).toBe('Rate limit exceeded');
+    expect(JSON.stringify(payload)).not.toContain('ThrottlerException');
+  });
 });

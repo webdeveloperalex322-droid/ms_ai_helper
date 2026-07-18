@@ -1,4 +1,5 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { IsString, IsOptional } from 'class-validator';
 import { AnalyticsService } from '../services/analytics.service';
@@ -36,6 +37,7 @@ class RecordEventDto {
 }
 
 @ApiTags('analytics')
+@SkipThrottle({ costly: true })
 @Controller('assistant/events')
 export class EventsController {
   constructor(private readonly analyticsService: AnalyticsService) {}

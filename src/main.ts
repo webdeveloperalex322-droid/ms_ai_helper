@@ -4,6 +4,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import { validateConfig } from './config/configuration';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import fastifyStatic from '@fastify/static';
@@ -11,7 +12,17 @@ import * as path from 'path';
 import 'reflect-metadata';
 
 async function bootstrap() {
-  const adapter = new FastifyAdapter({ logger: false });
+  // Read before the Nest app exists, so the adapter can be configured up front.
+  const bootConfig = validateConfig(process.env as Record<string, unknown>);
+
+  const adapter = new FastifyAdapter({
+    logger: false,
+    // Without trustProxy, Fastify leaves req.ips empty and every request behind
+    // nginx looks like it came from the proxy's address. Rate limiting by source
+    // would then count all clients as one — while still looking like it works.
+    trustProxy: bootConfig.TRUST_PROXY,
+    bodyLimit: bootConfig.BODY_LIMIT_BYTES,
+  });
   await adapter.getInstance().register(fastifyStatic as any, {
     root: path.join(process.cwd(), 'public'),
     prefix: '/public/',
