@@ -1,4 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { IsString, IsOptional } from 'class-validator';
 import { SuggestionService } from '../services/suggestion.service';
@@ -20,6 +21,7 @@ class SuggestionsQueryDto {
 }
 
 @ApiTags('suggestions')
+@SkipThrottle({ costly: true })
 @Controller('assistant/suggestions')
 export class SuggestionsController {
   constructor(private readonly suggestionService: SuggestionService) {}

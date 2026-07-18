@@ -2,12 +2,17 @@ import { Controller, Get, Inject } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { DATABASE_TOKEN, DrizzleDB } from '../database/database.module';
 import { sql } from 'drizzle-orm';
+import { SkipThrottle } from '@nestjs/throttler';
+import { PublicRoute } from '../common/security/access-scope.decorator';
 
 @ApiTags('Health')
+@SkipThrottle()
 @Controller('health')
 export class HealthController {
   constructor(@Inject(DATABASE_TOKEN) private readonly db: DrizzleDB) {}
 
+  // The only keyless route: an orchestrator or load balancer cannot present a key.
+  @PublicRoute()
   @Get()
   @ApiOperation({ summary: 'Health check' })
   async check() {

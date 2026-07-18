@@ -36,7 +36,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
           code = res.error ?? 'HTTP_ERROR';
           message = Array.isArray(res.message) ? res.message[0] : (res.message ?? message);
         }
+      } else if (status === HttpStatus.TOO_MANY_REQUESTS) {
+        // ThrottlerException carries its response as a plain string
+        // ("ThrottlerException: Too Many Requests"). Echoing it would both
+        // break the documented error shape and hand the client an internal
+        // class name, so the throttled case gets its own contract-compliant body.
+        code = 'TOO_MANY_REQUESTS';
+        message = 'Rate limit exceeded';
       } else {
+        code = 'HTTP_ERROR';
         message = String(response);
       }
     } else if (exception instanceof Error) {

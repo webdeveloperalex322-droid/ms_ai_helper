@@ -1,4 +1,5 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AssistantOrchestratorService } from '../services/assistant-orchestrator.service';
 import { ProductAnswerRequestDto } from '../dto/product-answer.request.dto';
@@ -14,6 +15,10 @@ export class AssistantController {
     private readonly analytics: AnalyticsService,
   ) {}
 
+  // Every call here triggers two LLM calls plus an embedding, so it gets the
+  // strict profile; the standard one is skipped to avoid double-counting.
+  @Throttle({ costly: {} })
+  @SkipThrottle({ standard: true })
   @Post('product-answer')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get product recommendations or answer a product question' })
@@ -49,6 +54,7 @@ export class AssistantController {
     return response;
   }
 
+  @SkipThrottle({ costly: true })
   @Post('feedback')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Submit feedback for an assistant response' })

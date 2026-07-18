@@ -13,6 +13,17 @@ RUN pnpm install --frozen-lockfile --prod --ignore-scripts && pnpm store prune
 COPY --chown=nestjs:nodejs dist ./dist
 COPY --chown=nestjs:nodejs src/database/migrations ./dist/src/database/migrations
 
+# AdminJS resolves its custom components from the source tree at runtime
+# (path.resolve(process.cwd(), 'src/modules/admin/components/...')), so these
+# TSX sources have to ship even though the rest of src/ does not.
+COPY --chown=nestjs:nodejs src/modules/admin/components ./src/modules/admin/components
+
+# AdminJS bundles those components on startup and writes the result into
+# ./.adminjs. WORKDIR is owned by root, so without this the non-root user hits
+# EACCES — which surfaces as a component build failure and sends debugging off
+# in entirely the wrong direction.
+RUN mkdir -p /app/.adminjs && chown -R nestjs:nodejs /app/.adminjs
+
 USER nestjs
 EXPOSE 3000
 CMD ["node", "dist/src/main"]

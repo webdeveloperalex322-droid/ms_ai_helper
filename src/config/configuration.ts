@@ -1,5 +1,54 @@
 import { z } from 'zod';
 
+/**
+ * One entry of the client access key list, parsed from CLIENT_API_KEYS.
+ * `label` identifies the consumer in logs and rate-limit counters; `key` is never logged.
+ */
+export interface ClientApiKeyEntry {
+  label: string;
+  key: string;
+}
+
+const LABEL_PATTERN = /^[a-z0-9_-]{1,32}$/;
+
+/**
+ * Parses `label:key` pairs separated by commas.
+ * Blank entries are skipped; malformed entries fail by position, never by content,
+ * so a bad value can't leak into the error message.
+ */
+export function parseClientApiKeys(raw: string): ClientApiKeyEntry[] {
+  const entries: ClientApiKeyEntry[] = [];
+
+  raw.split(',').forEach((chunk, index) => {
+    const trimmed = chunk.trim();
+    if (trimmed === '') return;
+
+    const separatorAt = trimmed.indexOf(':');
+    if (separatorAt === -1) {
+      throw new Error(`CLIENT_API_KEYS: entry #${index + 1} is missing the "label:key" separator`);
+    }
+
+    const label = trimmed.slice(0, separatorAt).trim();
+    const key = trimmed.slice(separatorAt + 1).trim();
+
+    if (label === '') {
+      throw new Error(`CLIENT_API_KEYS: entry #${index + 1} has an empty label`);
+    }
+    if (!LABEL_PATTERN.test(label)) {
+      throw new Error(
+        `CLIENT_API_KEYS: entry #${index + 1} has a label outside the allowed alphabet [a-z0-9_-], max 32 chars`,
+      );
+    }
+    if (key === '') {
+      throw new Error(`CLIENT_API_KEYS: entry #${index + 1} has an empty key`);
+    }
+
+    entries.push({ label, key });
+  });
+
+  return entries;
+}
+
 const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(3000),
@@ -31,6 +80,23 @@ const configSchema = z.object({
 
   INTERNAL_API_KEY: z.string().default('dev-internal-key-change-in-prod'),
 
+  // Access control (spec 007). Defaults keep development and tests working.
+  // Production must reject these very values as placeholders — that check is
+  // still to be added (US3); until then a production deploy can boot on them.
+  CLIENT_API_KEYS: z.string().default('dev-client:dev-client-key-change-in-prod'),
+  ACCESS_CONTROL_MODE: z.enum(['enforce', 'observe']).default('enforce'),
+  TRUST_PROXY: z.coerce.boolean().default(false),
+  BODY_LIMIT_BYTES: z.coerce.number().default(1_048_576),
+
+  // Rate limiting. The spec deliberately does not fix these numbers (FR-013):
+  // they get tuned against real traffic after rollout. Defaults are set low on
+  // purpose — a too-tight limit shows up in the logs, a too-loose one shows up
+  // on the invoice.
+  THROTTLE_COSTLY_LIMIT: z.coerce.number().default(10),
+  THROTTLE_COSTLY_TTL_SEC: z.coerce.number().default(60),
+  THROTTLE_STANDARD_LIMIT: z.coerce.number().default(60),
+  THROTTLE_STANDARD_TTL_SEC: z.coerce.number().default(60),
+
   ADMIN_USER: z.string().email().optional().default('admin@example.com'),
   ADMIN_PASSWORD: z.string().min(8).optional().default('changeme123'),
   ADMIN_COOKIE_SECRET: z
@@ -40,7 +106,13 @@ const configSchema = z.object({
     .default('dev-cookie-secret-replace-in-prod-!!!'),
 });
 
-export type AppConfig = z.infer<typeof configSchema>;
+/**
+ * `clientApiKeys` is derived from CLIENT_API_KEYS at load time so consumers
+ * read a parsed list instead of re-splitting the raw string.
+ */
+export type AppConfig = z.infer<typeof configSchema> & {
+  clientApiKeys: ClientApiKeyEntry[];
+};
 
 export function validateConfig(config: Record<string, unknown>): AppConfig {
   const result = configSchema.safeParse(config);
@@ -61,7 +133,14 @@ export function validateConfig(config: Record<string, unknown>): AppConfig {
     );
   }
 
-  return data;
+  const clientApiKeys = parseClientApiKeys(data.CLIENT_API_KEYS);
+  if (clientApiKeys.length === 0) {
+    throw new Error(
+      'Configuration validation error: CLIENT_API_KEYS must contain at least one key',
+    );
+  }
+
+  return { ...data, clientApiKeys };
 }
 
 export default (): AppConfig => {

@@ -3,6 +3,11 @@ node_modules
 .env
 .env.test
 .env.local
+# Real production secrets live here on the server — never let them reach an
+# image layer, where they would survive every later deletion.
+.env.prod
+# Locally generated AdminJS bundle; the image rebuilds it on startup.
+.adminjs
 *.log
 coverage
 .cursor
