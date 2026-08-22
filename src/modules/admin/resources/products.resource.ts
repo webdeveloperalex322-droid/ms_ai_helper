@@ -1,4 +1,7 @@
-export function productsResource(db: any, components: { imagePreview?: string; attributesShow?: string; ingredientsShow?: string } = {}) {
+export function productsResource(
+  db: any,
+  components: { imagePreview?: string; attributesShow?: string; ingredientsShow?: string } = {},
+) {
   return {
     resource: db.table('products'),
     options: {
@@ -42,7 +45,9 @@ export function productsResource(db: any, components: { imagePreview?: string; a
         ingredients: {
           label: 'Состав',
           type: 'textarea',
-          ...(components.ingredientsShow ? { components: { show: components.ingredientsShow } } : {}),
+          ...(components.ingredientsShow
+            ? { components: { show: components.ingredientsShow } }
+            : {}),
         },
         allergens: { label: 'Аллергены', type: 'textarea' },
         tags: { label: 'Теги', type: 'textarea' },

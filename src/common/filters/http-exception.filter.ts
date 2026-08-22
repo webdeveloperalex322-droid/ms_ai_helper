@@ -16,6 +16,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const reply = ctx.getResponse<FastifyReply>();
     const request = ctx.getRequest<FastifyRequest>();
+    const requestId = (request as FastifyRequest & { requestId?: string }).requestId;
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let code = 'INTERNAL_ERROR';
@@ -48,8 +49,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message = String(response);
       }
     } else if (exception instanceof Error) {
-      this.logger.error(`Unhandled error: ${exception.message}`, exception.stack);
-      message = exception.message;
+      // The client never sees exception.message here: it can carry SQL
+      // fragments, connection strings, or file paths. The full message and
+      // stack still go to the log, tied to the same requestId as the
+      // response, so an operator can look the failure up (spec 008, FR-010).
+      try {
+        this.logger.error(
+          `Unhandled error${requestId ? ` [${requestId}]` : ''}: ${exception.message}`,
+          exception.stack,
+        );
+      } catch {
+        // A broken logging backend must not turn an already-generic error
+        // response into a crashed request.
+      }
     }
 
     const body = {
@@ -57,6 +69,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         code,
         message,
         ...(details ? { details } : {}),
+        ...(requestId ? { requestId } : {}),
       },
     };
 

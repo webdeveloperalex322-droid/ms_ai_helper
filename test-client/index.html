@@ -109,7 +109,11 @@
     <div class="settings-body" id="settingsBody">
       <div class="field full">
         <label for="baseUrl">Base URL (адрес API)</label>
-        <input id="baseUrl" type="text" placeholder="http://localhost:3000/v1" />
+        <input id="baseUrl" type="text" placeholder="http://localhost:4000/v1" />
+      </div>
+      <div class="field full">
+        <label for="apiKey">X-API-Key — клиентский ключ доступа</label>
+        <input id="apiKey" type="text" placeholder="dev-client-key-change-in-prod" />
       </div>
       <div class="field full">
         <label for="br">br — филиал (branch id)</label>
@@ -146,12 +150,15 @@
 <script>
 (() => {
   const DEFAULTS = {
-    baseUrl: 'http://localhost:3000/v1',
+    baseUrl: 'http://localhost:4000/v1',
+    apiKey: 'dev-client-key-change-in-prod',
     rn: 'A79C5050-1EE7-11EB-9B6E-05B5FC40DF2A',
-    br: '11111111-1111-1111-1111-111111111111',
+    br: 'b8b3d1ac-4d3d-ea11-a958-8b023de8ef69',
     target: 'WEB',
   };
-  const LS_KEY = 'ai-assistant-test-client';
+  // Bumped to v2: v1 clients have a stale baseUrl and no apiKey in localStorage,
+  // and saved settings win over DEFAULTS.
+  const LS_KEY = 'ai-assistant-test-client-v2';
 
   const $ = (id) => document.getElementById(id);
   const chat = $('chat');
@@ -165,6 +172,7 @@
     try { saved = JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch (_) {}
     const s = { ...DEFAULTS, ...saved };
     $('baseUrl').value = s.baseUrl;
+    $('apiKey').value = s.apiKey;
     $('rn').value = s.rn;
     $('br').value = s.br;
     $('target').value = s.target;
@@ -173,10 +181,17 @@
   function currentSettings() {
     return {
       baseUrl: $('baseUrl').value.trim().replace(/\/+$/, ''),
+      apiKey: $('apiKey').value.trim(),
       rn: $('rn').value.trim(),
       br: $('br').value.trim(),
       target: $('target').value,
     };
+  }
+  // Every client-scoped route is behind AccessKeyGuard (x-api-key header).
+  function authHeaders(s, extra) {
+    const h = { ...(extra || {}) };
+    if (s.apiKey) h['X-API-Key'] = s.apiKey;
+    return h;
   }
   function saveSettings() {
     localStorage.setItem(LS_KEY, JSON.stringify(currentSettings()));
@@ -186,7 +201,7 @@
     const s = currentSettings();
     $('settingsStatus').textContent = `${s.baseUrl}  ·  br=${s.br.slice(0, 8)}…  ·  ${s.target}`;
   }
-  ['baseUrl', 'rn', 'br', 'target'].forEach((id) => $(id).addEventListener('change', saveSettings));
+  ['baseUrl', 'apiKey', 'rn', 'br', 'target'].forEach((id) => $(id).addEventListener('change', saveSettings));
 
   $('settingsToggle').addEventListener('click', () => {
     $('settingsBody').classList.toggle('collapsed');
@@ -317,7 +332,7 @@
     try {
       const res = await fetch(`${s.baseUrl}/assistant/product-answer`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(s, { 'Content-Type': 'application/json' }),
         body: JSON.stringify(body),
       });
       const text = await res.text();
@@ -362,7 +377,7 @@
     $('presetStatus').textContent = 'загрузка…';
     try {
       const url = `${s.baseUrl}/assistant/suggestions?rn=${encodeURIComponent(s.rn)}&br=${encodeURIComponent(s.br)}&target=${encodeURIComponent(s.target)}&screen_context=catalog`;
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: authHeaders(s) });
       const data = await res.json();
       const list = data.suggestions || [];
       $('presetStatus').textContent = `${list.length} пресетов`;

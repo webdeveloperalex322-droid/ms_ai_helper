@@ -35,8 +35,14 @@ async function bootstrap() {
   const port = config.get<number>('PORT') ?? 3000;
   const prefix = config.get<string>('API_PREFIX') ?? 'v1';
 
-  // Dev convenience: allow the standalone test-client (file:// or other port) to call the API.
-  app.enableCors();
+  // An empty list here only ever happens outside production (validateConfig
+  // rejects it in production) — dev convenience: let the standalone
+  // test-client (file:// or other port) call the API from anywhere.
+  if (bootConfig.corsAllowedOrigins.length > 0) {
+    app.enableCors({ origin: bootConfig.corsAllowedOrigins });
+  } else {
+    app.enableCors();
+  }
 
   app.setGlobalPrefix(prefix);
 
@@ -71,4 +77,9 @@ async function bootstrap() {
   Logger.log(`Swagger docs: http://localhost:${port}/${prefix}/docs`, 'Bootstrap');
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  // The Nest app may not exist yet (e.g. validateConfig threw before
+  // NestFactory.create ran), so there is no Nest logger to fall back on.
+  console.error('Application failed to start:', err instanceof Error ? err.message : err);
+  process.exit(1);
+});

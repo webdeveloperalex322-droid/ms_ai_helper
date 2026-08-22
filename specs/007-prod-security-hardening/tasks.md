@@ -118,8 +118,8 @@ description: "Task list for Production Security Hardening (P0)"
 
 - [ ] T034 [US2] Исправить двойной префикс: заменить `@Controller('v1/import')` на `@Controller('import')` в `src/modules/catalog-import/controllers/import.controller.ts:74` (живых вызывающих не найдено; приводит код в соответствие с `docs/knowledge/modules.md:22`)
 - [ ] T035 [US2] Пометить все пять эндпоинтов импорта декоратором `@InternalRoute()` в `src/modules/catalog-import/controllers/import.controller.ts` (FR-002)
-- [ ] T036 [US2] Пометить эндпоинты декоратором `@InternalRoute()` и **удалить ручной метод `checkAuth`** и его три вызова в `src/modules/admin-config/controllers/suggestion-admin.controller.ts` (FR-004 — забытый вызов делает маршрут публичным, декларативная проверка это исключает)
-- [ ] T037 [P] [US2] Создать DTO с `class-validator` и декораторами Swagger для тел `create` и `update` в `src/modules/admin-config/dto/`, заменив `@Body() body: any` в `suggestion-admin.controller.ts:43,52` (конвенция `CLAUDE.md`; глобальный `ValidationPipe` на нетипизированном теле не работает)
+- [x] T036 [US2] Пометить эндпоинты декоратором `@InternalRoute()` и **удалить ручной метод `checkAuth`** и его три вызова в `src/modules/admin-config/controllers/suggestion-admin.controller.ts` (FR-004 — забытый вызов делает маршрут публичным, декларативная проверка это исключает) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T021)
+- [x] T037 [P] [US2] Создать DTO с `class-validator` и декораторами Swagger для тел `create` и `update` в `src/modules/admin-config/dto/`, заменив `@Body() body: any` в `suggestion-admin.controller.ts:43,52` (конвенция `CLAUDE.md`; глобальный `ValidationPipe` на нетипизированном теле не работает) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T019)
 - [ ] T038 [US2] Пометить декоратором `@SkipThrottle()` служебный контур в `src/modules/catalog-import/controllers/import.controller.ts` и `src/modules/admin-config/controllers/suggestion-admin.controller.ts` — операторы, не анонимные потребители
 - [ ] T039 [US2] Обновить упоминания путей импорта в `docs/knowledge/modules.md`, если после T034 они разошлись с фактическими
 
@@ -135,20 +135,20 @@ description: "Task list for Production Security Hardening (P0)"
 
 ### Тесты
 
-- [ ] T040 [P] [US3] Юнит-тесты проверок конфигурации в `src/config/tests/configuration.spec.ts`: по каждой переменной из [перечня](./data-model.md#6-перечень-критичных-секретов) — три негативных случая; плюс контрольный случай успешного старта при `NODE_ENV=development` без явных секретов (FR-020, **SC-003**)
-- [ ] T041 [P] [US3] Тест полноты сообщения: при нескольких одновременных нарушениях перечисляются все, а не первое найденное
-- [ ] T042 [P] [US3] Тест формулировки: сообщение называет переменную, но не содержит ни фактического, ни ожидаемого значения (FR-019)
+- [x] T040 [P] [US3] Юнит-тесты проверок конфигурации в `src/config/tests/configuration.spec.ts`: по каждой переменной из [перечня](./data-model.md#6-перечень-критичных-секретов) — три негативных случая; плюс контрольный случай успешного старта при `NODE_ENV=development` без явных секретов (FR-020, **SC-003**) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T003)
+- [x] T041 [P] [US3] Тест полноты сообщения: при нескольких одновременных нарушениях перечисляются все, а не первое найденное — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T003)
+- [x] T042 [P] [US3] Тест формулировки: сообщение называет переменную, но не содержит ни фактического, ни ожидаемого значения (FR-019) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T003)
 
 ### Реализация
 
-- [ ] T043 [US3] Добавить в `validateConfig` в `src/config/configuration.ts` блок проверок, срабатывающий строго при `NODE_ENV === 'production'` — рядом с существующей условной проверкой `OPENAI_API_KEY` (FR-016)
-- [ ] T044 [US3] Реализовать проверку на совпадение со значениями-заглушками из [перечня](./data-model.md#6-перечень-критичных-секретов); дефолты в схеме **сохранить** — их удаление сломает разработку и тесты (FR-017, FR-020)
-- [ ] T045 [US3] Реализовать проверку минимальной длины: 32 символа для машинно-генерируемых значений, 12 для `ADMIN_PASSWORD` (FR-018)
-- [ ] T046 [US3] Реализовать проверку уникальности меток и значений внутри `CLIENT_API_KEYS` (FR-009e)
-- [ ] T047 [US3] Реализовать сбор **всех** нарушений в одно сообщение с ненулевым кодом завершения, без вывода значений (FR-019)
-- [ ] T048 [P] [US3] Пополнить `.env.example` всеми новыми переменными с пояснениями и заведомо непригодными местозаполнителями
-- [ ] T049 [US3] Пополнить `.env.prod` новыми переменными и **тремя отсутствующими сейчас** — `ADMIN_USER`, `ADMIN_PASSWORD`, `ADMIN_COOKIE_SECRET` (их отсутствие — причина работы панели на дефолтах из репозитория, см. [research.md](./research.md#r9-расхождение-в-сведениях-о-доступности-панели))
-- [ ] T050 [US3] Добавить `bootstrap().catch()` с ненулевым кодом завершения в `src/main.ts:63` — сейчас сбой старта даёт необработанное отклонение промиса
+- [x] T043 [US3] Добавить в `validateConfig` в `src/config/configuration.ts` блок проверок, срабатывающий строго при `NODE_ENV === 'production'` — рядом с существующей условной проверкой `OPENAI_API_KEY` (FR-016) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T004)
+- [x] T044 [US3] Реализовать проверку на совпадение со значениями-заглушками из [перечня](./data-model.md#6-перечень-критичных-секретов); дефолты в схеме **сохранить** — их удаление сломает разработку и тесты (FR-017, FR-020) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T004), чёрный список расширен значениями из `.env.prod`/`.env.example` (research R2)
+- [x] T045 [US3] Реализовать проверку минимальной длины: 32 символа для машинно-генерируемых значений, 12 для `ADMIN_PASSWORD` (FR-018) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T004)
+- [x] T046 [US3] Реализовать проверку уникальности меток и значений внутри `CLIENT_API_KEYS` (FR-009e) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T005)
+- [x] T047 [US3] Реализовать сбор **всех** нарушений в одно сообщение с ненулевым кодом завершения, без вывода значений (FR-019) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T001)
+- [x] T048 [P] [US3] Пополнить `.env.example` всеми новыми переменными с пояснениями и заведомо непригодными местозаполнителями — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T007)
+- [x] T049 [US3] Пополнить `.env.prod` новыми переменными и **тремя отсутствующими сейчас** — `ADMIN_USER`, `ADMIN_PASSWORD`, `ADMIN_COOKIE_SECRET` (их отсутствие — причина работы панели на дефолтах из репозитория, см. [research.md](./research.md#r9-расхождение-в-сведениях-о-доступности-панели)) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T008)
+- [x] T050 [US3] Добавить `bootstrap().catch()` с ненулевым кодом завершения в `src/main.ts:63` — сейчас сбой старта даёт необработанное отклонение промиса — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T006)
 - [ ] T051 [US3] **Ротировать ключ AITunnel**: выпустить новый в личном кабинете провайдера, обновить значение на сервере, отозвать прежний (FR-022)
 - [ ] T052 [US3] Подтвердить отзыв контрольным обращением со **старым** ключом, ожидающим отказа (SC-008 — наличие нового ключа в конфигурации ничего не говорит о судьбе старого)
 
@@ -197,12 +197,12 @@ description: "Task list for Production Security Hardening (P0)"
 
 ### Тесты
 
-- [ ] T059 [P] [US5] Дополнить `src/common/tests/http-exception.filter.spec.ts`: не-`HttpException` не попадает текстом в тело ответа; `requestId` присутствует; ошибки валидации по-прежнему передают описание клиенту (FR-027, FR-029)
+- [x] T059 [P] [US5] Дополнить `src/common/tests/http-exception.filter.spec.ts`: не-`HttpException` не попадает текстом в тело ответа; `requestId` присутствует; ошибки валидации по-прежнему передают описание клиенту (FR-027, FR-029) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T012)
 
 ### Реализация
 
-- [ ] T060 [US5] Заменить `message = exception.message` на обобщённое сообщение в ветке не-`HttpException` в `src/common/filters/http-exception.filter.ts:42-45`, сохранив полное логирование (FR-027, FR-028)
-- [ ] T061 [US5] Добавить `requestId` в тело ответа, считывая его с запроса (проставляется в `src/common/interceptors/logging.interceptor.ts:16`), для всех ветвей фильтра
+- [x] T060 [US5] Заменить `message = exception.message` на обобщённое сообщение в ветке не-`HttpException` в `src/common/filters/http-exception.filter.ts:42-45`, сохранив полное логирование (FR-027, FR-028) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T013)
+- [x] T061 [US5] Добавить `requestId` в тело ответа, считывая его с запроса (проставляется в `src/common/interceptors/logging.interceptor.ts:16`), для всех ветвей фильтра — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T013)
 - [ ] T062 [US5] Перерегистрировать фильтр как `APP_FILTER`-провайдер в `src/app.module.ts` вместо `useGlobalFilters(new …)` в `src/main.ts:41`, чтобы он получил `ConfigService` и мог возвращать подробности в режиме разработки (FR-029, сценарий 4)
 - [ ] T063 [US5] Проверить сценарий 7 из [quickstart.md](./quickstart.md) при остановленном Postgres (SC-004)
 
@@ -223,8 +223,8 @@ description: "Task list for Production Security Hardening (P0)"
 
 ### Реализация
 
-- [ ] T066 [US6] Добавить `CORS_ALLOWED_ORIGINS` в zod-схему `src/config/configuration.ts`; в продакшене пустой список — ошибка конфигурации, а не «разрешить всё» (FR-031)
-- [ ] T067 [US6] Заменить `app.enableCors()` на вызов со списком источников из конфигурации в `src/main.ts:28` (FR-030)
+- [x] T066 [US6] Добавить `CORS_ALLOWED_ORIGINS` в zod-схему `src/config/configuration.ts`; в продакшене пустой список — ошибка конфигурации, а не «разрешить всё» (FR-031) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T002)
+- [x] T067 [US6] Заменить `app.enableCors()` на вызов со списком источников из конфигурации в `src/main.ts:28` (FR-030) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T016)
 - [ ] T068 [US6] Задать `bodyLimit` в `FastifyAdapter` в `src/main.ts:14` из `BODY_LIMIT_BYTES`
 - [ ] T069 [US6] Разделить сборку Swagger-документа по режиму в `src/main.ts:44-56`: в продакшене — `createDocument` с `include` только модулей клиентского контура, в разработке — полный документ (FR-033, FR-036)
 - [ ] T070 [US6] Объявить схему доступа через `.addApiKey()` в `DocumentBuilder` и пометить защищённые операции, чтобы работала подстановка ключа для пробных запросов (FR-034)

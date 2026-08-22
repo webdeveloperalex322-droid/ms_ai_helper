@@ -49,6 +49,133 @@ export function parseClientApiKeys(raw: string): ClientApiKeyEntry[] {
   return entries;
 }
 
+/**
+ * Values that must never survive into production, keyed by variable name.
+ * Includes both current zod defaults and placeholders that have been found
+ * checked into env files in this repository — a schema default alone would
+ * miss the latter (spec 008, research R2).
+ */
+const PRODUCTION_PLACEHOLDERS: Record<string, string[]> = {
+  INTERNAL_API_KEY: ['dev-internal-key-change-in-prod', 'change-this-in-production'],
+  ADMIN_USER: ['admin@example.com'],
+  ADMIN_PASSWORD: ['changeme123'],
+  ADMIN_COOKIE_SECRET: [
+    'dev-cookie-secret-replace-in-prod-!!!',
+    'replace-with-at-least-32-char-random-secret-here',
+  ],
+};
+
+const CLIENT_API_KEY_PLACEHOLDERS = ['dev-client-key-change-in-prod'];
+
+/** Machine-generated secrets need 32 chars; the human-entered admin password needs 12. */
+const PRODUCTION_MIN_LENGTH: Record<string, number> = {
+  INTERNAL_API_KEY: 32,
+  ADMIN_PASSWORD: 12,
+  ADMIN_COOKIE_SECRET: 32,
+};
+
+const CLIENT_API_KEY_MIN_LENGTH = 32;
+
+/**
+ * Checks one scalar secret against the production rules, in priority order:
+ * missing beats placeholder beats too-short, so each variable contributes at
+ * most one violation. `rawConfig` (pre-zod-default) is what tells "not set"
+ * apart from "explicitly set to the same string as the default".
+ */
+function checkProductionSecret(
+  varName: string,
+  parsedValue: string,
+  rawConfig: Record<string, unknown>,
+  violations: string[],
+): void {
+  const raw = rawConfig[varName];
+  if (raw === undefined || raw === null || raw === '') {
+    violations.push(`${varName} is not set`);
+    return;
+  }
+
+  const placeholders = PRODUCTION_PLACEHOLDERS[varName] ?? [];
+  if (placeholders.includes(parsedValue)) {
+    violations.push(`${varName} matches a known placeholder value`);
+    return;
+  }
+
+  const minLength = PRODUCTION_MIN_LENGTH[varName];
+  if (minLength !== undefined && parsedValue.length < minLength) {
+    violations.push(`${varName} is shorter than the required minimum length`);
+  }
+}
+
+function checkProductionClientApiKeys(
+  clientApiKeys: ClientApiKeyEntry[],
+  violations: string[],
+): void {
+  const seenLabels = new Map<string, number>();
+  const seenKeys = new Map<string, number>();
+
+  clientApiKeys.forEach((entry, index) => {
+    if (CLIENT_API_KEY_PLACEHOLDERS.includes(entry.key)) {
+      violations.push(`CLIENT_API_KEYS: entry #${index + 1} matches a known placeholder value`);
+    } else if (entry.key.length < CLIENT_API_KEY_MIN_LENGTH) {
+      violations.push(
+        `CLIENT_API_KEYS: entry #${index + 1} is shorter than the required minimum length`,
+      );
+    }
+
+    const labelAt = seenLabels.get(entry.label);
+    if (labelAt !== undefined) {
+      violations.push(
+        `CLIENT_API_KEYS: entries #${labelAt + 1} and #${index + 1} share the same label`,
+      );
+    } else {
+      seenLabels.set(entry.label, index);
+    }
+
+    const keyAt = seenKeys.get(entry.key);
+    if (keyAt !== undefined) {
+      violations.push(
+        `CLIENT_API_KEYS: entries #${keyAt + 1} and #${index + 1} share the same key value`,
+      );
+    } else {
+      seenKeys.set(entry.key, index);
+    }
+  });
+}
+
+function collectProductionViolations(
+  data: Record<string, unknown>,
+  rawConfig: Record<string, unknown>,
+  clientApiKeys: ClientApiKeyEntry[],
+  corsAllowedOrigins: string[],
+): string[] {
+  const violations: string[] = [];
+
+  for (const varName of Object.keys(PRODUCTION_MIN_LENGTH).concat(['ADMIN_USER'])) {
+    checkProductionSecret(varName, String(data[varName] ?? ''), rawConfig, violations);
+  }
+
+  checkProductionClientApiKeys(clientApiKeys, violations);
+
+  if (corsAllowedOrigins.length === 0) {
+    violations.push('CORS_ALLOWED_ORIGINS must list at least one origin in production');
+  }
+
+  return violations;
+}
+
+/**
+ * Parses CORS_ALLOWED_ORIGINS into a normalized origin list: trims whitespace,
+ * drops empty entries, strips a trailing slash, lower-cases scheme+host — so
+ * `HTTPS://Shop.example.com/` and `https://shop.example.com` compare equal.
+ */
+export function parseCorsOrigins(raw: string): string[] {
+  return raw
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== '')
+    .map((entry) => entry.replace(/\/$/, '').toLowerCase());
+}
+
 const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(3000),
@@ -80,11 +207,15 @@ const configSchema = z.object({
 
   INTERNAL_API_KEY: z.string().default('dev-internal-key-change-in-prod'),
 
-  // Access control (spec 007). Defaults keep development and tests working.
-  // Production must reject these very values as placeholders — that check is
-  // still to be added (US3); until then a production deploy can boot on them.
+  // Access control (spec 007). Defaults keep development and tests working;
+  // production rejects these same values as placeholders (spec 008, see
+  // collectProductionViolations below).
   CLIENT_API_KEYS: z.string().default('dev-client:dev-client-key-change-in-prod'),
   ACCESS_CONTROL_MODE: z.enum(['enforce', 'observe']).default('enforce'),
+  // Empty by default: development and the standalone test client rely on
+  // enableCors() allowing every origin. Production rejects an empty list —
+  // see collectProductionViolations.
+  CORS_ALLOWED_ORIGINS: z.string().default(''),
   TRUST_PROXY: z.coerce.boolean().default(false),
   BODY_LIMIT_BYTES: z.coerce.number().default(1_048_576),
 
@@ -97,13 +228,13 @@ const configSchema = z.object({
   THROTTLE_STANDARD_LIMIT: z.coerce.number().default(60),
   THROTTLE_STANDARD_TTL_SEC: z.coerce.number().default(60),
 
+  // Minimum length for these three is a production-only rule (spec 008,
+  // FR-003) enforced in collectProductionViolations, not here: a schema-level
+  // .min() would reject a too-short value before it ever reached that check,
+  // and in development a short value must still be allowed through.
   ADMIN_USER: z.string().email().optional().default('admin@example.com'),
-  ADMIN_PASSWORD: z.string().min(8).optional().default('changeme123'),
-  ADMIN_COOKIE_SECRET: z
-    .string()
-    .min(32)
-    .optional()
-    .default('dev-cookie-secret-replace-in-prod-!!!'),
+  ADMIN_PASSWORD: z.string().optional().default('changeme123'),
+  ADMIN_COOKIE_SECRET: z.string().optional().default('dev-cookie-secret-replace-in-prod-!!!'),
 });
 
 /**
@@ -112,8 +243,14 @@ const configSchema = z.object({
  */
 export type AppConfig = z.infer<typeof configSchema> & {
   clientApiKeys: ClientApiKeyEntry[];
+  corsAllowedOrigins: string[];
 };
 
+/**
+ * All violations are collected before throwing — a production deploy with
+ * several bad secrets at once must be told about all of them, not just the
+ * first one found (spec 008, FR-005).
+ */
 export function validateConfig(config: Record<string, unknown>): AppConfig {
   const result = configSchema.safeParse(config);
   if (!result.success) {
@@ -122,25 +259,38 @@ export function validateConfig(config: Record<string, unknown>): AppConfig {
   }
 
   const data = result.data;
+  const violations: string[] = [];
+
   if (data.LLM_PROVIDER === 'openai' && !data.OPENAI_API_KEY) {
-    throw new Error(
-      'Configuration validation error: OPENAI_API_KEY is required when LLM_PROVIDER=openai',
-    );
+    violations.push('OPENAI_API_KEY is required when LLM_PROVIDER=openai');
   }
   if (data.EMBEDDING_PROVIDER === 'openai' && !data.OPENAI_API_KEY) {
-    throw new Error(
-      'Configuration validation error: OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai',
+    violations.push('OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai');
+  }
+
+  let clientApiKeys: ClientApiKeyEntry[] = [];
+  try {
+    clientApiKeys = parseClientApiKeys(data.CLIENT_API_KEYS);
+    if (clientApiKeys.length === 0) {
+      violations.push('CLIENT_API_KEYS must contain at least one key');
+    }
+  } catch (err) {
+    violations.push((err as Error).message);
+  }
+
+  const corsAllowedOrigins = parseCorsOrigins(data.CORS_ALLOWED_ORIGINS);
+
+  if (data.NODE_ENV === 'production') {
+    violations.push(
+      ...collectProductionViolations(data, config, clientApiKeys, corsAllowedOrigins),
     );
   }
 
-  const clientApiKeys = parseClientApiKeys(data.CLIENT_API_KEYS);
-  if (clientApiKeys.length === 0) {
-    throw new Error(
-      'Configuration validation error: CLIENT_API_KEYS must contain at least one key',
-    );
+  if (violations.length > 0) {
+    throw new Error(`Configuration validation error: ${violations.join('; ')}`);
   }
 
-  return { ...data, clientApiKeys };
+  return { ...data, clientApiKeys, corsAllowedOrigins };
 }
 
 export default (): AppConfig => {

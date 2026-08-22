@@ -1,7 +1,13 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DATABASE_TOKEN, DrizzleDB } from '../../../database/database.module';
-import { aiLogs, assistantSuggestions, cities, cityProducts, products } from '../../../database/schema';
+import {
+  aiLogs,
+  assistantSuggestions,
+  cities,
+  cityProducts,
+  products,
+} from '../../../database/schema';
 import { IntentSlotParserService } from './intent-slot-parser.service';
 import { ShortlistBuilderService } from './shortlist-builder.service';
 import { ResponseValidatorService } from './response-validator.service';
