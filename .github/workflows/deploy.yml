@@ -37,7 +37,8 @@ jobs:
           cp scripts/remote-deploy.sh remote-deploy.sh
           tar -cf aihelper_deploy.tar \
             dist Dockerfile .dockerignore docker-compose.prod.yml \
-            package.json pnpm-lock.yaml docker remote-deploy.sh
+            package.json pnpm-lock.yaml docker remote-deploy.sh \
+            src/database/migrations src/modules/admin/components
 
       - name: Upload archive
         uses: appleboy/scp-action@v0.1.7
@@ -46,7 +47,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           source: aihelper_deploy.tar
-          target: /home/deploy/ai-assistant/
+          target: /opt/ai-assistant/
 
       - name: Run deploy script
         uses: appleboy/ssh-action@v1.2.0
@@ -54,4 +55,4 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: bash /home/deploy/ai-assistant/remote-deploy.sh
+          script: bash /opt/ai-assistant/remote-deploy.sh

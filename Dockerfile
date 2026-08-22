@@ -1,5 +1,8 @@
 FROM node:22-alpine
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Pinned, not @latest: pnpm 11 dropped the "pnpm.overrides" field in
+# package.json, so it reads a different override set than the one recorded in
+# pnpm-lock.yaml and --frozen-lockfile fails with ERR_PNPM_LOCKFILE_CONFIG_MISMATCH.
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
 WORKDIR /app
 ENV NODE_ENV=production

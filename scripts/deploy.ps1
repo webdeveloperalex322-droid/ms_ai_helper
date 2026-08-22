@@ -1,7 +1,7 @@
 param(
-    [string]$Server = "deploy@31.128.45.9",
-    [string]$Key = "$env:USERPROFILE\.ssh\video_private",
-    [string]$RemoteDir = "/home/deploy/ai-assistant"
+    [string]$Server = "root@89.111.152.241",
+    [string]$Key = "$env:USERPROFILE\.ssh\mshelper_prod",
+    [string]$RemoteDir = "/opt/ai-assistant"
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,10 +14,12 @@ pnpm build
 $tarPath = Join-Path $env:TEMP "aihelper_deploy.tar"
 if (Test-Path $tarPath) { Remove-Item $tarPath -Force }
 
+# .env.prod is deliberately absent from the archive: the real secrets live only
+# in $RemoteDir/.env.prod on the server.
 Write-Host "==> Packing deployment archive..." -ForegroundColor Cyan
-& tar -cf $tarPath dist Dockerfile .dockerignore docker-compose.prod.yml package.json pnpm-lock.yaml docker .env.prod
+& tar -cf $tarPath dist Dockerfile .dockerignore docker-compose.prod.yml package.json pnpm-lock.yaml docker src/database/migrations src/modules/admin/components
 
-$sshArgs = @("-i", $Key, "-o", "StrictHostKeyChecking=no", "-o", "BatchMode=yes")
+$sshArgs = @("-i", $Key, "-o", "StrictHostKeyChecking=accept-new", "-o", "BatchMode=yes")
 
 Write-Host "==> Uploading to server..." -ForegroundColor Cyan
 & scp @sshArgs $tarPath "${Server}:${RemoteDir}/aihelper_deploy.tar"
