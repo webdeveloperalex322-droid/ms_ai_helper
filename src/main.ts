@@ -29,6 +29,11 @@ async function bootstrap() {
     decorateReply: false,
   });
 
+  // Crawlers fetch /robots.txt off the domain root, not under /public/ or the API prefix.
+  adapter.getInstance().get('/robots.txt', (_req, reply) => {
+    reply.type('text/plain').send('User-agent: *\nDisallow: /\n');
+  });
+
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter);
 
   const config = app.get(ConfigService);
