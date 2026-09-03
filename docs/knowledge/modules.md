@@ -9,8 +9,9 @@ Owns the product-answer request pipeline (see [architecture.md](architecture.md)
 - Entry: [assistant.module.ts](../../src/modules/assistant/assistant.module.ts), [assistant-orchestrator.service.ts](../../src/modules/assistant/services/assistant-orchestrator.service.ts)
 
 ### `rag/`
-Retrieval. searchable-text builder, embeddings (mock/openai by `EMBEDDING_PROVIDER`), vector search (pgvector), keyword search, and the hybrid retriever that merges + scores them.
+Retrieval. searchable-text builder, embeddings (mock/openai by `EMBEDDING_PROVIDER`), vector search (pgvector), keyword search, and the hybrid retriever that merges + scores them. Plus `RagBulkIndexerService` — bulk indexing of the whole catalog (see ADR-009..011).
 - Entry: [rag.module.ts](../../src/modules/rag/rag.module.ts), [hybrid-retriever.service.ts](../../src/modules/rag/services/hybrid-retriever.service.ts)
+- **Indexing**: `pnpm rag:index <productId>` — one product; `pnpm rag:index-all [--rn --br --target --force --dry-run --limit]` — the whole catalog ([bulk-indexer.service.ts](../../src/modules/rag/services/bulk-indexer.service.ts), CLI in [scripts/rag-index-all.ts](../../scripts/rag-index-all.ts)). Without a bulk run the vector index is empty and hybrid search silently degrades to keyword + the "all city products" fallback.
 
 ### `catalog/`
 Product lookup / filtering by `rn` / `br` / `target` (and category, ingredients, etc.). Hydrates authoritative product + city-product data.
@@ -19,7 +20,7 @@ Product lookup / filtering by `rn` / `br` / `target` (and category, ingredients,
 ### `catalog-import/`
 Imports cities, products, and categories from external venus APIs. `CATALOG_API_MODE` = `mock` | `real` (mock vs http client behind `catalog-api.client.interface.ts`). `ImportJobService` tracks jobs.
 - **Services**: `CityImportService`, `ProductImportService`, `CategoryImportService`, `ProductNormalizerService` (extracts venus API field mapping — spec 004), `ImportJobService`
-- **Endpoints** (`POST /v1/import/`): `cities`, `products`, `products/by-ids`, `categories`
+- **Endpoints** (`POST /v1/internal/import/`, служебный ключ `x-internal-api-key` обязателен): `cities`, `products`, `products/by-ids`, `categories`, `attributes`
 - Entry: [catalog-import.module.ts](../../src/modules/catalog-import/catalog-import.module.ts)
 
 ### `suggestions/`

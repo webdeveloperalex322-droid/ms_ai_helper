@@ -13,15 +13,27 @@ import { FastifyRequest } from 'fastify';
 import { CONSUMER_REQUEST_PROPERTY, Consumer } from '@/common/security/consumer.types';
 
 /**
- * Rate limiting keyed by consumer rather than by network address.
+ * Rate limiting keyed by consumer, and — in the client contour — by address too.
  *
- * Two consumers sharing an office NAT must not eat each other's quota, and an
- * integrator with its own key must be throttled — and observable — on its own.
- * Requests with no recognised consumer (health, or a request let through in
- * observation mode) fall back to the client address.
+ * Three cases, each for a different reason:
  *
- * `req.ips` is only populated when trustProxy is enabled on the adapter; see
- * the note in main.ts for why that matters.
+ * 1. `internal` scope keys by label alone. One key, one operator, possibly a
+ *    changing address (CI runner, cron host): the quota belongs to the key.
+ *
+ * 2. `client` scope keys by label *and* address. The client key ships inside a
+ *    browser widget, so it is public by construction and every visitor of the
+ *    site presents the same label. Label alone put the entire site on one
+ *    counter — one visitor could spend the shared LLM budget and hand everyone
+ *    else a 429. The label stays in the key, so the original guarantee holds:
+ *    two integrators behind one office NAT still cannot eat each other's quota.
+ *
+ * 3. No recognised consumer (health, or a request let through in observation
+ *    mode) keys by address.
+ *
+ * The address is always `req.ip`, never `req.ips[0]`. `ips[0]` is the leftmost
+ * X-Forwarded-For entry, which the client writes: keying on it let an attacker
+ * mint a fresh counter per request. `req.ip` is resolved by Fastify against the
+ * trusted hop count — see the trustProxy note in main.ts.
  */
 @Injectable()
 export class ConsumerThrottlerGuard extends ThrottlerGuard {
@@ -39,10 +51,11 @@ export class ConsumerThrottlerGuard extends ThrottlerGuard {
 
   protected async getTracker(req: Record<string, any>): Promise<string> {
     const consumer = req[CONSUMER_REQUEST_PROPERTY] as Consumer | undefined;
-    if (consumer?.label) return `consumer:${consumer.label}`;
+    const address = (req as unknown as FastifyRequest).ip;
 
-    const request = req as unknown as FastifyRequest;
-    const address = request.ips?.length ? request.ips[0] : request.ip;
+    if (consumer?.scope === 'internal') return `consumer:${consumer.label}`;
+    if (consumer?.label) return `consumer:${consumer.label}|ip:${address}`;
+
     return `ip:${address}`;
   }
 

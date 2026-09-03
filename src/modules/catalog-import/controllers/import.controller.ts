@@ -1,6 +1,7 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Inject } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { IsString, IsOptional, IsArray, IsEnum } from 'class-validator';
+import { InternalRoute } from '../../../common/security/access-scope.decorator';
 import { CityImportService } from '../services/city-import.service';
 import { ProductImportService } from '../services/product-import.service';
 import { CategoryImportService } from '../services/category-import.service';
@@ -71,13 +72,26 @@ class ImportByIdsDto {
 }
 
 @ApiTags('import')
-@Controller('v1/import')
+// `internal/import`, not `v1/import`: the global prefix already supplies the
+// version, so the old value answered on /v1/v1/import/* — and the `internal`
+// segment now matches the contour the guard enforces, as it already does for
+// `internal/assistant/suggestions` (spec 001, spec 007 T034).
+@Controller('internal/import')
+// Class-level scope: these five endpoints rewrite the whole catalogue and call
+// the external venus API. The client key ships inside a browser widget, so it
+// is public by construction and must never reach them — only the internal key
+// does. Declared on the class so a handler added later inherits it rather than
+// silently landing in the client contour (spec 007, FR-003).
+@InternalRoute()
 export class ImportController {
+  // Explicit @Inject: design:paramtypes metadata is emitted by tsc but not by
+  // the test runner's transform, so type-only injection resolves at runtime and
+  // silently fails under test (see access-key.registry.ts).
   constructor(
-    private readonly cityImportService: CityImportService,
-    private readonly productImportService: ProductImportService,
-    private readonly categoryImportService: CategoryImportService,
-    private readonly attributeImportService: AttributeImportService,
+    @Inject(CityImportService) private readonly cityImportService: CityImportService,
+    @Inject(ProductImportService) private readonly productImportService: ProductImportService,
+    @Inject(CategoryImportService) private readonly categoryImportService: CategoryImportService,
+    @Inject(AttributeImportService) private readonly attributeImportService: AttributeImportService,
   ) {}
 
   @Post('cities')

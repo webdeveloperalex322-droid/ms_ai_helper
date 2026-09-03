@@ -125,10 +125,11 @@ curl -X POST http://localhost:3000/v1/assistant/suggestions/suggest_salmon_rolls
 ### Import cities (dry-run)
 
 ```bash
-curl -X POST http://localhost:3000/v1/import/cities \
+curl -X POST http://localhost:3000/v1/internal/import/cities \
   -H "Content-Type: application/json" \
+  -H "x-internal-api-key: $INTERNAL_API_KEY" \
   -d '{
-    "retail_network_id": "sushimaster",
+    "rn": "A79C5050-1EE7-11EB-9B6E-05B5FC40DF2A",
     "dry_run": true
   }'
 ```
@@ -136,13 +137,14 @@ curl -X POST http://localhost:3000/v1/import/cities \
 ### Import products
 
 ```bash
-curl -X POST http://localhost:3000/v1/import/products \
+curl -X POST http://localhost:3000/v1/internal/import/products \
   -H "Content-Type: application/json" \
+  -H "x-internal-api-key: $INTERNAL_API_KEY" \
   -d '{
-    "retail_network_id": "sushimaster",
-    "city_id": "test_city",
+    "rn": "A79C5050-1EE7-11EB-9B6E-05B5FC40DF2A",
+    "br": "11111111-1111-1111-1111-111111111111",
     "target": "WEB",
-    "dry_run": false
+    "mode": "full"
   }'
 ```
 

@@ -176,6 +176,40 @@ export function parseCorsOrigins(raw: string): string[] {
     .map((entry) => entry.replace(/\/$/, '').toLowerCase());
 }
 
+const BOOLEAN_TRUE = new Set(['true', '1', 'yes', 'on']);
+const BOOLEAN_FALSE = new Set(['false', '0', 'no', 'off', '']);
+
+/**
+ * Boolean flag read from the environment, where every value arrives as a string.
+ *
+ * Not `z.coerce.boolean()`: that is `Boolean(value)`, so every non-empty string
+ * is true — including the string `"false"`. `TRUST_PROXY=false` therefore
+ * enabled trustProxy, which is the opposite of what the file says and, with no
+ * proxy in front, lets a direct caller set X-Forwarded-For and choose its own
+ * rate-limit bucket.
+ *
+ * An unrecognised value fails the boot rather than guessing: a flag nobody can
+ * read correctly from the env file is worse than a startup error.
+ */
+function booleanFromEnv(defaultValue: boolean) {
+  return z
+    .union([z.boolean(), z.string()])
+    .default(defaultValue)
+    .transform((value, ctx) => {
+      if (typeof value === 'boolean') return value;
+
+      const normalized = value.trim().toLowerCase();
+      if (BOOLEAN_TRUE.has(normalized)) return true;
+      if (BOOLEAN_FALSE.has(normalized)) return false;
+
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'must be one of true/false, 1/0, yes/no, on/off',
+      });
+      return z.NEVER;
+    });
+}
+
 const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(3000),
@@ -203,7 +237,7 @@ const configSchema = z.object({
   SESSION_TTL_MINUTES: z.coerce.number().default(60),
 
   MAX_SUGGESTIONS_ON_SCREEN: z.coerce.number().default(8),
-  HIDE_EMPTY_SUGGESTIONS: z.coerce.boolean().default(true),
+  HIDE_EMPTY_SUGGESTIONS: booleanFromEnv(true),
 
   INTERNAL_API_KEY: z.string().default('dev-internal-key-change-in-prod'),
 
@@ -216,7 +250,7 @@ const configSchema = z.object({
   // enableCors() allowing every origin. Production rejects an empty list —
   // see collectProductionViolations.
   CORS_ALLOWED_ORIGINS: z.string().default(''),
-  TRUST_PROXY: z.coerce.boolean().default(false),
+  TRUST_PROXY: booleanFromEnv(false),
   BODY_LIMIT_BYTES: z.coerce.number().default(1_048_576),
 
   // Rate limiting. The spec deliberately does not fix these numbers (FR-013):

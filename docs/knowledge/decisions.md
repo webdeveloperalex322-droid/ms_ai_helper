@@ -6,6 +6,22 @@ Format: **Decision** — Context / Why — Consequences.
 
 ---
 
+## ADR-013: Client rate limits key on consumer *and* address; trustProxy is a hop count
+
+**Decision:** `ConsumerThrottlerGuard` keys the `client` contour by `consumer:<label>|ip:<req.ip>`, the `internal` contour by `consumer:<label>` alone, and never reads `req.ips[0]`. The Fastify adapter uses `trustProxy: 1`, and nginx sets `X-Forwarded-For $remote_addr` (overwrite, not `$proxy_add_x_forwarded_for`).
+**Why:** The client key ships inside the browser widget, so it is public and every visitor presents the same label. Keyed by label alone, `THROTTLE_COSTLY_LIMIT=10` meant 10 requests per minute for the whole site — one visitor with DevTools could hand everyone else a 429, and honest growth would hit the same wall. The label stays in the key, so the original guarantee still holds: two integrators behind one office NAT cannot eat each other's quota. Internal keys stay label-only because one operator may legitimately call from a changing address (CI runner, cron host).
+`req.ips[0]` is the *leftmost* X-Forwarded-For entry — written by the caller — so keying on it let an attacker mint a fresh counter per request; `trustProxy: true` had the same effect on `req.ip`. A hop count of 1 trusts only our nginx, and the nginx-side overwrite drops any forged prefix at the edge, so the two changes are independent layers.
+**Where:** [consumer-throttler.guard.ts](../../src/common/throttling/consumer-throttler.guard.ts), [main.ts](../../src/main.ts), `docker/nginx/templates/http.conf`, `scripts/enable-ssl.sh`.
+**Consequences:** Client counters now multiply by visitor, so `THROTTLE_COSTLY_LIMIT` is a *per-visitor* budget — re-tune it as a per-person number, not a site total. The throttler store is still in-memory, so a second app replica would keep its own counters; scaling out needs a Redis storage adapter. `TRUST_PROXY=true` without a real proxy in front is now a hole, not merely a wrong reading — and the flag can finally be switched off at all: it used `z.coerce.boolean()`, i.e. `Boolean(value)`, so the *string* `"false"` parsed as true. Both env booleans now go through `booleanFromEnv` in [configuration.ts](../../src/config/configuration.ts), which accepts true/false, 1/0, yes/no, on/off and refuses to boot on anything else.
+
+## ADR-012: Import is an internal contour; Swagger and the AdminJS session are not public surface
+
+**Decision:** `ImportController` carries a class-level `@InternalRoute()` and lives at `internal/import`. Swagger is mounted only when `NODE_ENV !== 'production'`. AdminJS registers its session with `saveUninitialized: false`.
+**Why:** All three were public by accident rather than by choice. The import controller had no scope decorator, so it fell into the default `client` contour — reachable with the widget's public key, meaning any site visitor could trigger a full catalogue rewrite and drive traffic at the venus API. Swagger and AdminJS are both registered straight onto the raw Fastify instance, so neither passes through `AccessKeyGuard`: Swagger published the whole API map including the internal contour, and `@fastify/session` (default `saveUninitialized: true`) minted and stored a session for *every* anonymous request to any route — answering `/v1/health` with `set-cookie: adminjs=…` and growing the in-memory store without bound until the process restarted.
+The decorator goes on the class, not on each of the five handlers, so a handler added later inherits the internal contour instead of silently landing in the client one.
+**Where:** [import.controller.ts](../../src/modules/catalog-import/controllers/import.controller.ts), [main.ts](../../src/main.ts), [admin.module.ts](../../src/modules/admin/admin.module.ts). Covered by [import-access.spec.ts](../../src/modules/catalog-import/tests/import-access.spec.ts).
+**Consequences:** Import paths moved from `/v1/v1/import/*` to `/v1/internal/import/*` and now require `x-internal-api-key`. `/v1/docs` is gone in production — read the API from the DTOs and controllers. Anything mounted on the raw Fastify instance stays outside the guard, so a new registration there must bring its own access control.
+
 ## ADR-011: Product attributes — JSONB on products + reference table
 
 **Decision:** Store attribute values per-product as `attributes: jsonb` on `products` table; maintain `product_attributes` as a reference/dictionary table per rn.
@@ -77,3 +93,22 @@ Format: **Decision** — Context / Why — Consequences.
 **Decision:** Features go through GitHub Spec-Kit (`/speckit-specify → clarify → plan → tasks → analyze → implement`); artifacts in `specs/<NNN-short-name>/`, principles in `.specify/memory/constitution.md`.
 **Why:** Spec-first keeps design decisions reviewable before code.
 **Consequences:** For any non-trivial change, create/extend a spec under `specs/` rather than coding straight away. Trivial docs/lookups may skip.
+
+## ADR-009: Массовая индексация RAG — свой скрипт, логика в `src/`
+
+**Decision:** Массовый индексатор живёт в `RagBulkIndexerService` ([bulk-indexer.service.ts](../../src/modules/rag/services/bulk-indexer.service.ts)) внутри модуля RAG; `scripts/rag-index-all.ts` — тонкая CLI-обёртка (argv, сборка сервисов, печать, коды возврата). Разбор аргументов — чистые функции в [bulk-index-options.ts](../../src/modules/rag/bulk-index-options.ts).
+**Why:** `vitest.config.ts` включает только `src/**/*.spec.ts` и `test/**/*.test.ts` — код в `scripts/` вне тестов. Вынос сути в `src/` делает обход, ретраи и правило пропуска покрываемыми и оставляет возможность дёрнуть индексатор из админ-эндпоинта. Спека: [009-rag-bulk-index](../../specs/009-rag-bulk-index/spec.md).
+**Consequences:** В `scripts/rag-index-all.ts` не добавлять бизнес-логику. Скрипт работает вне Nest-контейнера (tsx не эмитит метаданные декораторов), сервисы собираются руками, как в `seeds/` и `rag-index-product.ts`.
+
+## ADR-010: Правило «уже проиндексировано» — хэш + модель + статус
+
+**Decision:** Позиция пропускается только если `product_embeddings.content_hash` равен MD5 текущего searchable-text, `product_embeddings.model_name` равен `provider.modelName()`, и `product_chunks.embedding_status = 'ready'`. Флаг `--force` отключает правило.
+**Why:** Одного `product_chunks.content_hash` мало: `upsertChunk` при совпавшем хэше возвращает существующий чанк, **не трогая** `embedding_status`, поэтому чанк с актуальным текстом может быть `failed` или вовсе без вектора. Сверка `model_name` нужна, потому что векторы разных моделей несравнимы — при смене `EMBEDDING_MODEL` каталог обязан переиндексироваться целиком.
+**Where:** `RagBulkIndexerService.isUpToDate`.
+**Consequences:** Холостой повторный прогон не делает ни одного обращения к поставщику векторов (проверено: 20 879 позиций → 0 обработано, 20 879 пропущено).
+
+## ADR-011: Пакетные эмбеддинги и дедупликация ключа чанка
+
+**Decision:** Векторы запрашиваются пачками через `EmbeddingProvider.embedBatch` (новый `EmbeddingService.buildForChunks`, по умолчанию 32 текста, до 3 пачек одновременно). Ошибка провайдера на пачке → повтор с backoff `1s → 2s → 4s` (только для сетевых/5xx/429), после исчерпания попыток пачка разбирается по одной позиции. Неретраибельная ошибка (401 и подобные) валит пачку сразу. Кандидаты дедуплицируются по `(product_id, br, target)` в пределах прогона.
+**Why:** 10 000 позиций — это ~313 HTTP-запросов вместо 10 000. Дедупликация нужна потому, что чанк ключуется тройкой `(product_id, br, target)` **без `rn`**, у `product_chunks` нет уникального ограничения, а `upsertChunk` работает по схеме select-then-insert — две строки каталога с разными `rn` и одинаковыми `br/target/product_id` в параллельных пачках дали бы дубль чанка.
+**Consequences:** `EmbeddingService.buildForChunks` бросает исключение при отказе провайдера (чтобы вызывающий мог повторить) и возвращает `failed` для проблем уровня позиции (нет чанка, неверная размерность). Одиночный `buildForChunk` сохранил прежнее поведение — глушит ошибку и ставит `failed`.

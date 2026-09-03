@@ -5,6 +5,7 @@ import { EmbeddingService } from './services/embedding.service';
 import { VectorSearchService } from './services/vector-search.service';
 import { KeywordSearchService } from './services/keyword-search.service';
 import { HybridRetrieverService } from './services/hybrid-retriever.service';
+import { RagBulkIndexerService } from './services/bulk-indexer.service';
 import { EMBEDDING_PROVIDER_TOKEN } from './providers/embedding.provider.interface';
 import { MockEmbeddingProvider } from './providers/mock-embedding.provider';
 import { OpenAIEmbeddingProvider } from './providers/openai-embedding.provider';
@@ -31,11 +32,13 @@ import { CatalogModule } from '../catalog/catalog.module';
     VectorSearchService,
     KeywordSearchService,
     HybridRetrieverService,
+    RagBulkIndexerService,
   ],
   exports: [
     SearchableTextBuilderService,
     EmbeddingService,
     HybridRetrieverService,
+    RagBulkIndexerService,
     EMBEDDING_PROVIDER_TOKEN,
   ],
 })

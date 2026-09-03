@@ -116,12 +116,12 @@ description: "Task list for Production Security Hardening (P0)"
 
 ### Реализация
 
-- [ ] T034 [US2] Исправить двойной префикс: заменить `@Controller('v1/import')` на `@Controller('import')` в `src/modules/catalog-import/controllers/import.controller.ts:74` (живых вызывающих не найдено; приводит код в соответствие с `docs/knowledge/modules.md:22`)
-- [ ] T035 [US2] Пометить все пять эндпоинтов импорта декоратором `@InternalRoute()` в `src/modules/catalog-import/controllers/import.controller.ts` (FR-002)
+- [x] T034 [US2] Исправлен двойной префикс: `@Controller('internal/import')` в `src/modules/catalog-import/controllers/import.controller.ts`. Не `import`, как планировалось изначально: сегмент `internal` совпадает с контуром, который проверяет guard, и с ТЗ — см. [contracts/access-control.md](./contracts/access-control.md)
+- [x] T035 [US2] Импорт помечен `@InternalRoute()` — **на классе**, не на пяти методах: так эндпоинт, добавленный позже, наследует служебный контур вместо того чтобы молча оказаться в клиентском (FR-002). Покрыто `src/modules/catalog-import/tests/import-access.spec.ts`
 - [x] T036 [US2] Пометить эндпоинты декоратором `@InternalRoute()` и **удалить ручной метод `checkAuth`** и его три вызова в `src/modules/admin-config/controllers/suggestion-admin.controller.ts` (FR-004 — забытый вызов делает маршрут публичным, декларативная проверка это исключает) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T021)
 - [x] T037 [P] [US2] Создать DTO с `class-validator` и декораторами Swagger для тел `create` и `update` в `src/modules/admin-config/dto/`, заменив `@Body() body: any` в `suggestion-admin.controller.ts:43,52` (конвенция `CLAUDE.md`; глобальный `ValidationPipe` на нетипизированном теле не работает) — закрыто в [008-prod-launch-blockers](../008-prod-launch-blockers/tasks.md#T019)
 - [ ] T038 [US2] Пометить декоратором `@SkipThrottle()` служебный контур в `src/modules/catalog-import/controllers/import.controller.ts` и `src/modules/admin-config/controllers/suggestion-admin.controller.ts` — операторы, не анонимные потребители
-- [ ] T039 [US2] Обновить упоминания путей импорта в `docs/knowledge/modules.md`, если после T034 они разошлись с фактическими
+- [x] T039 [US2] Обновлены пути импорта в `docs/knowledge/modules.md` и примеры curl в `README.md`
 
 **Checkpoint**: Операции записи закрыты. US1 + US2 вместе снимают оба риска приоритета P1, связанные с доступом.
 

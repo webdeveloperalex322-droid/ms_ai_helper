@@ -84,9 +84,11 @@ describe('rate limiting over HTTP', () => {
     const moduleRef = await Test.createTestingModule({ imports: [ThrottleTestModule] }).compile();
 
     app = moduleRef.createNestApplication<NestFastifyApplication>(
-      // trustProxy mirrors production: without it req.ips stays empty and every
-      // client behind the proxy shares a single counter.
-      new FastifyAdapter({ logger: false, trustProxy: true }),
+      // The hop count mirrors production (main.ts). It matters here: with
+      // `true` Fastify trusts the whole forwarded chain, so req.ip becomes
+      // whatever the caller wrote and the spoofing test below would pass
+      // against a still-broken guard.
+      new FastifyAdapter({ logger: false, trustProxy: 1 }),
       { logger: false },
     );
     app.setGlobalPrefix('v1');
@@ -96,9 +98,9 @@ describe('rate limiting over HTTP', () => {
     base = (await app.getUrl()).replace('[::1]', '127.0.0.1');
   });
 
-  // Counters are keyed by consumer label, so they survive a change of address.
-  // Without this reset each test would start already throttled by the previous
-  // one — which is itself a small proof that the key is the label, not the IP.
+  // Each test uses its own forwarded address, but the client counter is keyed
+  // by label *and* address, so a reset keeps the cases independent of the
+  // order they run in.
   beforeEach(() => {
     const storage = app.get<ThrottlerStorage>(getStorageToken());
     (storage as unknown as { storage: Map<string, unknown> }).storage.clear();
@@ -140,6 +142,53 @@ describe('rate limiting over HTTP', () => {
 
     expect(blocked.status).toBe(429);
     expect(Number(blocked.headers.get('retry-after'))).toBeGreaterThan(0);
+  });
+
+  it('does not let one visitor exhaust the quota of everyone sharing the client key', async () => {
+    // The client key ships inside the browser widget, so every visitor of the
+    // site presents this same label. Keyed by label alone, the first visitor to
+    // spend the limit handed a 429 to the whole site.
+    const blocked = await exhaust({
+      'x-api-key': 'client-key-one',
+      'x-forwarded-for': '203.0.113.10',
+    });
+    expect(blocked.status).toBe(429);
+
+    const anotherVisitor = await post({
+      'x-api-key': 'client-key-one',
+      'x-forwarded-for': '203.0.113.11',
+    });
+    expect(anotherVisitor.status).toBe(201);
+  });
+
+  it('cannot be walked through by prepending an X-Forwarded-For entry', async () => {
+    // What a spoofing client actually produces: it sends its own
+    // X-Forwarded-For, and the proxy appends the address it observed, so the
+    // chain reads `<forged…>, <real>`. Only the last entry is trustworthy.
+    //
+    // Keyed on the leftmost entry — the old `req.ips[0]` — every request here
+    // opened a fresh counter and the limit was never reached. `req.ip` under a
+    // one-hop trustProxy resolves to the real trailing address, so all four
+    // share one counter.
+    //
+    // The nginx config removes the forged part outright (X-Forwarded-For is
+    // overwritten with $remote_addr rather than appended to); this is the
+    // second layer, for the case where a proxy in front appends instead.
+    const realAddress = '203.0.113.20';
+
+    for (let i = 0; i < COSTLY_LIMIT; i++) {
+      const res = await post({
+        'x-api-key': 'client-key-one',
+        'x-forwarded-for': `198.51.100.${i}, ${realAddress}`,
+      });
+      expect(res.status).toBe(201);
+    }
+
+    const blocked = await post({
+      'x-api-key': 'client-key-one',
+      'x-forwarded-for': `198.51.100.250, ${realAddress}`,
+    });
+    expect(blocked.status).toBe(429);
   });
 
   it('does not let one consumer exhaust another consumer quota', async () => {

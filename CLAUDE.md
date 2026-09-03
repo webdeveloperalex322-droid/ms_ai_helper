@@ -17,6 +17,10 @@ pnpm install                          # install deps
 docker-compose up -d                  # start Postgres (pgvector/pgvector:pg16) on :5432
 pnpm db:migrate                       # apply Drizzle migrations (src/database/migrations)
 pnpm db:seed                          # seed data (seeds/index.ts)
+pnpm rag:index-all                    # build chunks + embeddings for the WHOLE catalog
+                                      # (--rn/--br/--target slice, --force, --dry-run, --limit)
+                                      # required after an import: without it vector search is empty
+pnpm rag:index <productId>            # same for a single product
 pnpm start:dev                        # watch-mode dev server -> http://localhost:3000/v1
                                       # Swagger: http://localhost:3000/v1/docs
 

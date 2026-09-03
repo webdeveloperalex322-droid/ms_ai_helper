@@ -272,3 +272,54 @@ describe('validateConfig — process exit contract (FR-007)', () => {
     expect(() => validateConfig(validProdEnv({ ADMIN_PASSWORD: undefined }))).toThrow(Error);
   });
 });
+
+describe('validateConfig — boolean env flags', () => {
+  const devEnv = (overrides: Record<string, string> = {}) => ({
+    NODE_ENV: 'development',
+    DATABASE_URL: 'postgresql://user:pass@host:5432/db',
+    ...overrides,
+  });
+
+  it('reads TRUST_PROXY=false as false', () => {
+    // The regression this exists for: z.coerce.boolean() is Boolean(value), so
+    // the *string* "false" was true and the flag could not be switched off from
+    // an env file at all. With no proxy in front, that let a direct caller set
+    // X-Forwarded-For and pick its own rate-limit bucket.
+    expect(validateConfig(devEnv({ TRUST_PROXY: 'false' })).TRUST_PROXY).toBe(false);
+  });
+
+  it('reads TRUST_PROXY=true as true', () => {
+    expect(validateConfig(devEnv({ TRUST_PROXY: 'true' })).TRUST_PROXY).toBe(true);
+  });
+
+  it('defaults TRUST_PROXY to false when unset', () => {
+    expect(validateConfig(devEnv()).TRUST_PROXY).toBe(false);
+  });
+
+  it.each([
+    ['0', false],
+    ['no', false],
+    ['off', false],
+    ['', false],
+    ['1', true],
+    ['yes', true],
+    ['on', true],
+    ['TRUE', true],
+    ['  false  ', false],
+  ])('accepts %j as %s', (raw, expected) => {
+    expect(validateConfig(devEnv({ TRUST_PROXY: raw as string })).TRUST_PROXY).toBe(expected);
+  });
+
+  it('refuses to boot on a value it cannot read', () => {
+    // Guessing is what caused the original bug; an unreadable flag is a
+    // startup error instead.
+    expect(() => validateConfig(devEnv({ TRUST_PROXY: 'maybe' }))).toThrow(/TRUST_PROXY/);
+  });
+
+  it('applies the same parsing to HIDE_EMPTY_SUGGESTIONS', () => {
+    expect(validateConfig(devEnv({ HIDE_EMPTY_SUGGESTIONS: 'false' })).HIDE_EMPTY_SUGGESTIONS).toBe(
+      false,
+    );
+    expect(validateConfig(devEnv()).HIDE_EMPTY_SUGGESTIONS).toBe(true);
+  });
+});

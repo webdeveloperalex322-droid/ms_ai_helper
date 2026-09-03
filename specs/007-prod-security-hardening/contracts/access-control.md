@@ -28,16 +28,16 @@
 | `POST /v1/assistant/feedback` | `client` | `standard` |
 | `GET /v1/assistant/suggestions` | `client` | `standard` |
 | `POST /v1/assistant/events` | `client` | `standard` |
-| `POST /v1/import/cities` | `internal` | не применяется |
-| `POST /v1/import/products` | `internal` | не применяется |
-| `POST /v1/import/products/by-ids` | `internal` | не применяется |
-| `POST /v1/import/categories` | `internal` | не применяется |
-| `POST /v1/import/attributes` | `internal` | не применяется |
+| `POST /v1/internal/import/cities` | `internal` | не применяется |
+| `POST /v1/internal/import/products` | `internal` | не применяется |
+| `POST /v1/internal/import/products/by-ids` | `internal` | не применяется |
+| `POST /v1/internal/import/categories` | `internal` | не применяется |
+| `POST /v1/internal/import/attributes` | `internal` | не применяется |
 | `GET /v1/internal/assistant/suggestions` | `internal` | не применяется |
 | `POST /v1/internal/assistant/suggestions` | `internal` | не применяется |
 | `PATCH /v1/internal/assistant/suggestions/:id` | `internal` | не применяется |
 
-**Изменение путей импорта.** Сейчас они отвечают на `/v1/v1/import/*` из-за двойного префикса: `@Controller('v1/import')` (`import.controller.ts:74`) поверх глобального `v1` (`main.ts:30`). Приводятся к `/v1/import/*`. Живых вызывающих не найдено (обойдены `scripts/`, `test/`, `test-client/`, `public/`, `seeds/`); документация репозитория (`docs/knowledge/modules.md:22`) уже описывает путь без дубля. Панель администратора запускает импорт вызовом сервисов напрямую, а не по HTTP, и не затрагивается.
+**Изменение путей импорта.** Сейчас они отвечают на `/v1/v1/import/*` из-за двойного префикса: `@Controller('v1/import')` (`import.controller.ts:74`) поверх глобального `v1` (`main.ts:30`). Приводятся к `/v1/internal/import/*` — сегмент `internal` совпадает с контуром, который проверяет guard (как уже сделано для `internal/assistant/suggestions`), и соответствует ТЗ (`docs/technical_design_ai_product_assistant.md:1515`) и спеке 001. Живых вызывающих не найдено (обойдены `scripts/`, `test/`, `test-client/`, `public/`, `seeds/`); документация репозитория (`docs/knowledge/modules.md:22`) уже описывает путь без дубля. Панель администратора запускает импорт вызовом сервисов напрямую, а не по HTTP, и не затрагивается.
 
 **Вне конвейера Nest** — данный контракт на них не распространяется:
 

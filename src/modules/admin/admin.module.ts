@@ -157,6 +157,16 @@ export class AdminModule implements OnModuleInit {
           httpOnly: true,
           sameSite: 'lax',
         },
+        // @adminjs/fastify registers @fastify/session on the *root* Fastify
+        // instance, and that plugin defaults saveUninitialized to true. Every
+        // anonymous request to any route — /v1/health included — therefore
+        // minted a session, stored it in the in-memory store and answered with
+        // `set-cookie: adminjs=…`. Two problems: an internal cookie leaked to
+        // every API client, and the store grew without bound, so a stream of
+        // cookieless requests walked the process into an OOM restart.
+        // With this off, a session is only persisted once something writes to
+        // it — which is exactly what the login handler does.
+        saveUninitialized: false,
       },
     );
 

@@ -17,10 +17,14 @@ async function bootstrap() {
 
   const adapter = new FastifyAdapter({
     logger: false,
-    // Without trustProxy, Fastify leaves req.ips empty and every request behind
-    // nginx looks like it came from the proxy's address. Rate limiting by source
-    // would then count all clients as one — while still looking like it works.
-    trustProxy: bootConfig.TRUST_PROXY,
+    // A hop count, not `true`. Without any trustProxy, every request behind
+    // nginx looks like it came from the proxy and rate limiting counts all
+    // clients as one — while still looking like it works. But `true` trusts the
+    // whole X-Forwarded-For chain including the part the client wrote, so
+    // req.ip became attacker-controlled and the limit could be walked straight
+    // through with a header. `1` trusts exactly one hop — our nginx — so req.ip
+    // is the address nginx actually observed.
+    trustProxy: bootConfig.TRUST_PROXY ? 1 : false,
     bodyLimit: bootConfig.BODY_LIMIT_BYTES,
   });
   await adapter.getInstance().register(fastifyStatic as any, {
@@ -63,23 +67,36 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter());
   app.useGlobalInterceptors(new LoggingInterceptor());
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('AI Product Assistant')
-    .setDescription('Backend MVP for AI-assisted product selection in sushi delivery')
-    .setVersion('1.0')
-    .addTag('assistant')
-    .addTag('suggestions')
-    .addTag('analytics')
-    .addTag('import')
-    .addTag('admin')
-    .build();
+  // Swagger is registered straight onto the adapter, so it never passes through
+  // AccessKeyGuard — in production it published the full API map, the internal
+  // import contour included, to anyone who asked. It is a development tool, so
+  // it is only mounted outside production.
+  const swaggerEnabled = bootConfig.NODE_ENV !== 'production';
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup(`${prefix}/docs`, app, document);
+  if (swaggerEnabled) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('AI Product Assistant')
+      .setDescription('Backend MVP for AI-assisted product selection in sushi delivery')
+      .setVersion('1.0')
+      .addTag('assistant')
+      .addTag('suggestions')
+      .addTag('analytics')
+      .addTag('import')
+      .addTag('admin')
+      .build();
+
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup(`${prefix}/docs`, app, document);
+  }
 
   await app.listen(port, '0.0.0.0');
   Logger.log(`Application running on: http://localhost:${port}/${prefix}`, 'Bootstrap');
-  Logger.log(`Swagger docs: http://localhost:${port}/${prefix}/docs`, 'Bootstrap');
+  Logger.log(
+    swaggerEnabled
+      ? `Swagger docs: http://localhost:${port}/${prefix}/docs`
+      : 'Swagger docs: disabled in production',
+    'Bootstrap',
+  );
 }
 
 bootstrap().catch((err) => {

@@ -65,6 +65,7 @@
     "db:migrate": "tsx src/database/migrate.ts",
     "db:seed": "tsx seeds/index.ts",
     "rag:index": "tsx scripts/rag-index-product.ts",
+    "rag:index-all": "tsx scripts/rag-index-all.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

@@ -30,4 +30,5 @@ Write-Host "==> Running deploy on server..." -ForegroundColor Cyan
 
 Write-Host "==> Deploy complete!" -ForegroundColor Green
 Write-Host "    https://mshelper.al-developer.ru/v1/health"
-Write-Host "    https://mshelper.al-developer.ru/v1/docs"
+# Swagger is not mounted in production (see main.ts), so there is no /v1/docs there.
+Write-Host "    https://mshelper.al-developer.ru/admin"
