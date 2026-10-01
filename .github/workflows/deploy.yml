@@ -37,7 +37,7 @@ jobs:
           cp scripts/remote-deploy.sh remote-deploy.sh
           tar -cf aihelper_deploy.tar \
             dist Dockerfile .dockerignore docker-compose.prod.yml \
-            package.json pnpm-lock.yaml docker remote-deploy.sh \
+            package.json pnpm-lock.yaml docker test-client remote-deploy.sh \
             src/database/migrations src/modules/admin/components
 
       - name: Upload archive

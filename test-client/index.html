@@ -150,7 +150,10 @@
 <script>
 (() => {
   const DEFAULTS = {
-    baseUrl: 'http://localhost:4000/v1',
+    // Served by prod nginx at /test-chat/: the API is proxied next to the page.
+    baseUrl: location.pathname.startsWith('/test-chat')
+      ? `${location.origin}/test-chat/api`
+      : 'http://localhost:4000/v1',
     apiKey: 'dev-client-key-change-in-prod',
     rn: 'A79C5050-1EE7-11EB-9B6E-05B5FC40DF2A',
     br: 'b8b3d1ac-4d3d-ea11-a958-8b023de8ef69',

@@ -3,6 +3,7 @@ dist/
 .env
 .env.prod
 !.env.example
+docker/nginx/secrets/
 coverage/
 .nyc_output/
 *.log

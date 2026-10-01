@@ -17,6 +17,32 @@
    npx serve test-client
    ```
 
+## Чат на проде
+
+https://mshelper.al-developer.ru/test-chat/ — закрыт Basic Auth в nginx
+([docker/nginx/snippets/test-chat.conf](../docker/nginx/snippets/test-chat.conf)).
+Логин/пароль — у владельца (`TEST_CHAT_*` в локальном `.env`). Страница шлёт
+запросы на `/test-chat/api/*`, nginx подставляет ключ `testchat` и проксирует
+в `/v1/*`, поэтому поле X-API-Key в шапке игнорируется.
+
+Серверное состояние в `/opt/ai-assistant/docker/nginx/secrets/` (не в git):
+`test-chat.htpasswd` (`openssl passwd -apr1`) и `test-chat-key.conf`
+(`set $test_chat_key "<ключ>";`). Сменить пароль: перезаписать htpasswd и
+`docker exec ai_assistant_nginx nginx -s reload`.
+
+## Локальный чат против прод-сервера
+
+```bash
+pnpm chat:prod
+```
+
+Открой http://localhost:8787 и в шапке поставь Base URL `http://localhost:8787/v1`.
+Скрипт `serve-prod.mjs` раздаёт `index.html` и проксирует `/v1/*` на
+`https://mshelper.al-developer.ru` (переопределяется `PROD_API_URL`, порт —
+`CHAT_PORT`). Прокси нужен, потому что CORS прода пускает только прод-домен.
+Ключ берётся из `CLIENT_API_KEYS` в `.env.prod` и подставляется в `X-API-Key`
+(ключ из шапки игнорируется). Запросы идут в прод: тратят LLM-баланс и пишут `ai_logs`.
+
 ## Настройки (шапка, кликом сворачивается)
 
 | Поле      | Назначение                                | Дефолт |

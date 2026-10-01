@@ -82,6 +82,9 @@ server {
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 
+    # Password-protected test chat at /test-chat/ (docker/nginx/snippets).
+    include /etc/nginx/snippets/*.conf;
+
     # Brute-force guard for the AdminJS login form. The panel is mounted
     # straight onto the raw Fastify instance and never passes through the
     # application's throttler guard, so this is its only rate limit.

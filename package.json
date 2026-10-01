@@ -66,7 +66,8 @@
     "db:seed": "tsx seeds/index.ts",
     "rag:index": "tsx scripts/rag-index-product.ts",
     "rag:index-all": "tsx scripts/rag-index-all.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "chat:prod": "node test-client/serve-prod.mjs"
   },
   "dependencies": {
     "@adminjs/fastify": "4.1.3",

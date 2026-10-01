@@ -22,6 +22,8 @@ rm -f docker/nginx/conf.d/mshelper.conf docker/nginx/conf.d/mshelper-init.conf
 # default.conf with the certificate paths, and a deploy must not stomp that
 # back to plain HTTP. Only seed it on a server that has no config yet.
 mkdir -p docker/nginx/conf.d
+# Test chat htpasswd + client key (see docker/nginx/snippets/test-chat.conf).
+mkdir -p docker/nginx/secrets
 if [ ! -f docker/nginx/conf.d/default.conf ]; then
   cp docker/nginx/templates/http.conf docker/nginx/conf.d/default.conf
 fi
