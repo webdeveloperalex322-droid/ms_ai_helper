@@ -10,11 +10,16 @@ export interface CategoryOption {
 
 export interface ResolvedCategory {
   /**
-   * Values to match against products.category_id; empty means "no category filter".
-   * Both the directory id and the slug are returned: the catalog API puts the category
-   * SLUG into a product's `categoryId`, while the directory keeps its own id alongside it.
+   * Values to match against products.category_id. Both the directory id and the slug are
+   * returned, because different catalogs store different forms there.
    */
   categoryIds: string[];
+  /**
+   * Values to match against products.category_name. The live catalog stores the id of a
+   * SUBcategory on the product (four distinct ids share the name "Роллы и суши") while the
+   * directory keeps the top-level id, so the name is the only reliable link.
+   */
+  categoryNames: string[];
   /** Display names of the matched categories, for user-facing texts. */
   labels: string[];
   matched: boolean;
@@ -36,7 +41,12 @@ const MAX_OPTIONS = 40;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const MIN_SUBSTRING_LENGTH = 3;
 
-const EMPTY_RESULT: ResolvedCategory = { categoryIds: [], labels: [], matched: false };
+const EMPTY_RESULT: ResolvedCategory = {
+  categoryIds: [],
+  categoryNames: [],
+  labels: [],
+  matched: false,
+};
 
 interface CategoryRow {
   categoryId: string;
@@ -92,16 +102,18 @@ export class CategoryResolverService {
     if (!chosen.length) return EMPTY_RESULT;
 
     const categoryIds: string[] = [];
+    const categoryNames: string[] = [];
     const labels: string[] = [];
     for (const row of chosen) {
       if (labels.includes(row.name)) continue;
       for (const form of [row.categoryId, row.slug]) {
         if (form && !categoryIds.includes(form)) categoryIds.push(form);
       }
+      if (row.name) categoryNames.push(row.name);
       labels.push(row.name);
     }
 
-    return { categoryIds, labels, matched: true };
+    return { categoryIds, categoryNames, labels, matched: true };
   }
 
   async listOptions(rn: string, target: string): Promise<CategoryOption[]> {

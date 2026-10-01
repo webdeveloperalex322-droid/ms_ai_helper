@@ -1,12 +1,18 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { DATABASE_TOKEN, DrizzleDB } from '../../../database/database.module';
 import { products, cityProducts, cities, Product, CityProduct } from '../../../database/schema';
-import { eq, and, lte, inArray } from 'drizzle-orm';
+import { eq, and, lte, inArray, or, sql, SQL } from 'drizzle-orm';
 
 export interface CatalogFilters {
   budgetMax?: number;
   /** Resolved product.category_id values; empty or omitted means no category filter. */
   categoryIds?: string[];
+  /**
+   * Resolved category display names, matched case-insensitively against
+   * product.category_name. The live catalog stores a SUBcategory id on the product, so the
+   * name is the only link back to the directory entry.
+   */
+  categoryNames?: string[];
   preferredIngredients?: string[];
   excludedIngredients?: string[];
   spicy?: boolean;
@@ -46,8 +52,25 @@ export class CatalogService {
       conditions.push(lte(cityProducts.price, String(filters.budgetMax)));
     }
 
+    // A product belongs to the requested category if it carries one of the resolved ids OR
+    // one of the resolved names — different catalogs fill one or the other.
+    const categoryMatches: SQL[] = [];
     if (filters.categoryIds?.length) {
-      conditions.push(inArray(products.categoryId, filters.categoryIds));
+      categoryMatches.push(inArray(products.categoryId, filters.categoryIds));
+    }
+    if (filters.categoryNames?.length) {
+      categoryMatches.push(
+        inArray(
+          sql`lower(${products.categoryName})`,
+          filters.categoryNames.map((name) => name.toLowerCase()),
+        ),
+      );
+    }
+
+    if (categoryMatches.length === 1) {
+      conditions.push(categoryMatches[0]);
+    } else if (categoryMatches.length > 1) {
+      conditions.push(or(...categoryMatches) as SQL);
     }
 
     const rows = await this.db

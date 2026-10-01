@@ -46,6 +46,7 @@ export class ShortlistBuilderService {
     const filters: CatalogFilters = {
       budgetMax: slots.budget_max ?? undefined,
       categoryIds: resolved?.matched ? resolved.categoryIds : undefined,
+      categoryNames: resolved?.matched ? resolved.categoryNames : undefined,
       preferredIngredients: slots.preferred_ingredients ?? undefined,
       excludedIngredients: slots.excluded_ingredients ?? undefined,
       spicy: slots.spicy ?? undefined,

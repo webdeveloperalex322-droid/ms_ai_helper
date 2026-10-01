@@ -118,9 +118,19 @@ export class HybridRetrieverService {
     // Slot match bonus
     let slotMatch = 0;
 
-    if (filters.categoryIds?.length && product.categoryId) {
-      if (filters.categoryIds.includes(product.categoryId)) slotMatch += 20;
-    }
+    const inCategoryById = Boolean(
+      filters.categoryIds?.length && product.categoryId
+        ? filters.categoryIds.includes(product.categoryId)
+        : false,
+    );
+    const inCategoryByName = Boolean(
+      filters.categoryNames?.length && product.categoryName
+        ? filters.categoryNames.some(
+            (name) => name.toLowerCase() === product.categoryName!.toLowerCase(),
+          )
+        : false,
+    );
+    if (inCategoryById || inCategoryByName) slotMatch += 20;
 
     if (filters.preferredIngredients?.length) {
       const ingredients = (product.ingredients as string[] | null) ?? [];

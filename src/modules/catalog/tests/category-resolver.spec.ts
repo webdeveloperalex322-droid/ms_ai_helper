@@ -51,6 +51,18 @@ describe('CategoryResolverService.resolve', () => {
     expect(result.labels).toEqual(['Напитки']);
   });
 
+  it('returns the category names, which is the only link to live products', async () => {
+    const result = await service.resolve(RN, TARGET, 'роллы');
+
+    expect(result.categoryNames).toEqual(['Роллы', 'Премиальные роллы']);
+  });
+
+  it('returns no names when nothing matched', async () => {
+    const result = await service.resolve(RN, TARGET, 'фывапролдж');
+
+    expect(result.categoryNames).toEqual([]);
+  });
+
   it('matches by supplier category id', async () => {
     const result = await service.resolve(RN, TARGET, 'CAT-SET');
 

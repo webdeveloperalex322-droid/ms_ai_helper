@@ -62,10 +62,31 @@ describe('CatalogService.findByCity — category filter', () => {
     expect(params).toContain('CAT-ROLL-PREMIUM');
   });
 
-  it('applies no category condition when the list is empty', async () => {
-    await service.findByCity(RN, BR, TARGET, { categoryIds: [] });
+  it('filters by category name when the product carries a subcategory id', async () => {
+    await service.findByCity(RN, BR, TARGET, { categoryNames: ['Роллы и суши'] });
+
+    const { sql, params } = new PgDialect().sqlToQuery(db.where.mock.calls[0][0]);
+    expect(sql).toContain('lower("products"."category_name") in');
+    expect(params).toContain('роллы и суши');
+  });
+
+  it('matches either the resolved ids or the resolved names', async () => {
+    await service.findByCity(RN, BR, TARGET, {
+      categoryIds: ['CAT-ROLL'],
+      categoryNames: ['Роллы и суши'],
+    });
+
+    const { sql } = new PgDialect().sqlToQuery(db.where.mock.calls[0][0]);
+    expect(sql).toContain('"category_id" in');
+    expect(sql).toContain('lower("products"."category_name") in');
+    expect(sql).toMatch(/ or /);
+  });
+
+  it('applies no category condition when both lists are empty', async () => {
+    await service.findByCity(RN, BR, TARGET, { categoryIds: [], categoryNames: [] });
 
     expect(capturedSql(db)).not.toContain('"category_id"');
+    expect(capturedSql(db)).not.toContain('category_name');
   });
 
   it('applies no category condition when the list is omitted', async () => {

@@ -106,6 +106,7 @@ export class SuggestionService {
 
       const products = await this.catalogService.findByCity(rn, br, target, {
         categoryIds: resolved.matched ? resolved.categoryIds : undefined,
+        categoryNames: resolved.matched ? resolved.categoryNames : undefined,
         preferredIngredients: slots.preferred_ingredients,
         excludedIngredients: slots.excluded_ingredients,
         budgetMax: slots.budget_max ?? undefined,

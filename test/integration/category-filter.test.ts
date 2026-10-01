@@ -27,8 +27,10 @@ const CATALOG_ROWS = [
     products: {
       id: 'p-roll-1',
       name: 'Филадельфия',
-      // Live shape: the product stores the category slug.
-      categoryId: 'rolly',
+      // Live shape: products carry a SUBcategory id that is absent from the directory,
+      // so only category_name links them back to the "Роллы" entry.
+      categoryId: 'SUB-620E38C0',
+      categoryName: 'Роллы',
       ingredients: ['лосось'],
       allergens: null,
       tags: null,
@@ -38,10 +40,25 @@ const CATALOG_ROWS = [
   },
   {
     products: {
+      id: 'p-roll-2',
+      name: 'Калифорния',
+      // A second subcategory id under the very same directory category.
+      categoryId: 'SUB-4CAB8550',
+      categoryName: 'Роллы',
+      ingredients: ['краб'],
+      allergens: null,
+      tags: null,
+      imageUrl: null,
+    },
+    city_products: { price: '399', currency: 'RUB', isAvailable: true },
+  },
+  {
+    products: {
       id: 'p-set-1',
       name: 'Сет Токио',
       // Directory-id shape, as seeded/mock catalogs store it.
       categoryId: 'CAT-SET',
+      categoryName: 'Сеты',
       ingredients: ['лосось'],
       allergens: null,
       tags: null,
@@ -54,6 +71,7 @@ const CATALOG_ROWS = [
       id: 'p-drink-1',
       name: 'Кола',
       categoryId: 'napitki',
+      categoryName: 'Напитки',
       ingredients: null,
       allergens: null,
       tags: null,
@@ -71,8 +89,27 @@ const CATALOG_ROWS = [
 function makeDb() {
   const catalogWhere = vi.fn(async (condition: any) => {
     const { sql, params } = new PgDialect().sqlToQuery(condition);
-    if (!sql.includes('"category_id" in')) return CATALOG_ROWS;
-    return CATALOG_ROWS.filter((row) => params.includes(row.products.categoryId));
+    const byId = sql.includes('"category_id" in');
+    const byName = sql.includes('category_name') && sql.includes(' in ');
+
+    let rows = CATALOG_ROWS;
+
+    if (byId || byName) {
+      rows = rows.filter(
+        (row) =>
+          (byId && params.includes(row.products.categoryId)) ||
+          (byName && params.includes(row.products.categoryName.toLowerCase())),
+      );
+    }
+
+    // Apply the budget bound the same way Postgres would, reading it off the placeholder.
+    const budget = sql.match(/"price" <= \$(\d+)/);
+    if (budget) {
+      const limit = Number(params[Number(budget[1]) - 1]);
+      rows = rows.filter((row) => Number(row.city_products.price) <= limit);
+    }
+
+    return rows;
   });
 
   return {
@@ -123,6 +160,18 @@ describe('category filtering over a real-shaped catalog', () => {
     expect(shortlist.map((c) => c.product_id)).toEqual(['p-roll-1']);
   });
 
+  it('gathers every subcategory of the requested category via the category name', async () => {
+    const builder = makeShortlistBuilder([
+      { productId: 'p-roll-1', score: 0.8 },
+      { productId: 'p-roll-2', score: 0.75 },
+      { productId: 'p-drink-1', score: 0.6 },
+    ]);
+
+    const shortlist = await builder.build(intent({ category: 'rolly' }), RN, BR, TARGET);
+
+    expect(shortlist.map((c) => c.product_id).sort()).toEqual(['p-roll-1', 'p-roll-2']);
+  });
+
   it('returns products of the requested category when search returns no hits at all', async () => {
     const builder = makeShortlistBuilder([]);
 
@@ -143,13 +192,14 @@ describe('category filtering over a real-shaped catalog', () => {
     const builder = makeShortlistBuilder([]);
 
     const shortlist = await builder.build(
-      intent({ category: 'роллы', budget_max: 1000 }),
+      intent({ category: 'роллы', budget_max: 450 }),
       RN,
       BR,
       TARGET,
     );
 
-    expect(shortlist.map((c) => c.product_id)).toEqual(['p-roll-1']);
+    // Both rolls are in the category; only the 399 ₽ one fits the budget.
+    expect(shortlist.map((c) => c.product_id)).toEqual(['p-roll-2']);
   });
 
   it('reports the catalog display name for the resolved category', async () => {
