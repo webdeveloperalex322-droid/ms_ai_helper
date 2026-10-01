@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { DATABASE_TOKEN, DrizzleDB } from '../../../database/database.module';
 import { assistantSuggestions } from '../../../database/schema';
 import { CatalogService } from '../../catalog/services/catalog.service';
+import { CategoryResolverService } from '../../catalog/services/category-resolver.service';
 import { eq, and } from 'drizzle-orm';
 
 export interface SuggestionListItem {
@@ -23,6 +24,7 @@ export class SuggestionService {
     @Inject(DATABASE_TOKEN) private readonly db: DrizzleDB,
     private readonly catalogService: CatalogService,
     private readonly config: ConfigService,
+    private readonly categoryResolver: CategoryResolverService,
   ) {}
 
   async getActiveSuggestions(
@@ -98,8 +100,12 @@ export class SuggestionService {
     const slots = payload?.slots ?? {};
 
     try {
+      // Same resolution as the answer path, otherwise presets carrying a category slug are
+      // hidden although the city has matching products.
+      const resolved = await this.categoryResolver.resolve(rn, target, slots.category);
+
       const products = await this.catalogService.findByCity(rn, br, target, {
-        categoryId: slots.category,
+        categoryIds: resolved.matched ? resolved.categoryIds : undefined,
         preferredIngredients: slots.preferred_ingredients,
         excludedIngredients: slots.excluded_ingredients,
         budgetMax: slots.budget_max ?? undefined,

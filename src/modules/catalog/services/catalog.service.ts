@@ -1,11 +1,12 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { DATABASE_TOKEN, DrizzleDB } from '../../../database/database.module';
 import { products, cityProducts, cities, Product, CityProduct } from '../../../database/schema';
-import { eq, and, lte } from 'drizzle-orm';
+import { eq, and, lte, inArray } from 'drizzle-orm';
 
 export interface CatalogFilters {
   budgetMax?: number;
-  categoryId?: string;
+  /** Resolved product.category_id values; empty or omitted means no category filter. */
+  categoryIds?: string[];
   preferredIngredients?: string[];
   excludedIngredients?: string[];
   spicy?: boolean;
@@ -45,8 +46,8 @@ export class CatalogService {
       conditions.push(lte(cityProducts.price, String(filters.budgetMax)));
     }
 
-    if (filters.categoryId) {
-      conditions.push(eq(products.categoryId, filters.categoryId));
+    if (filters.categoryIds?.length) {
+      conditions.push(inArray(products.categoryId, filters.categoryIds));
     }
 
     const rows = await this.db

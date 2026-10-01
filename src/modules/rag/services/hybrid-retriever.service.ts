@@ -118,8 +118,8 @@ export class HybridRetrieverService {
     // Slot match bonus
     let slotMatch = 0;
 
-    if (filters.categoryId && product.categoryId === filters.categoryId) {
-      slotMatch += 20;
+    if (filters.categoryIds?.length && product.categoryId) {
+      if (filters.categoryIds.includes(product.categoryId)) slotMatch += 20;
     }
 
     if (filters.preferredIngredients?.length) {

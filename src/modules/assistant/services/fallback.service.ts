@@ -26,10 +26,12 @@ export class FallbackService {
     };
   }
 
-  forEmptyResult(slots: IntentResult['slots']): FallbackResponse {
+  forEmptyResult(slots: IntentResult['slots'], categoryLabel?: string): FallbackResponse {
     const parts: string[] = [];
     if (slots.budget_max) parts.push(`до ${slots.budget_max} ₽`);
-    if (slots.category) parts.push(`из категории ${slots.category}`);
+    // Prefer the catalog's display name over the raw slot value (`roll`, `set`).
+    const category = categoryLabel ?? slots.category;
+    if (category) parts.push(`из категории ${category}`);
     if (slots.excluded_ingredients?.length) {
       parts.push(`без ${slots.excluded_ingredients.join(', ')}`);
     }

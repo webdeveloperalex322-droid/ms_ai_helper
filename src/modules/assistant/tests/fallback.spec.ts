@@ -59,3 +59,26 @@ describe('FallbackService', () => {
     expect(result.fallback_used).toBe(true);
   });
 });
+
+describe('FallbackService — category label in empty result', () => {
+  const service = new FallbackService();
+
+  it('prints the catalog display name when the category was resolved', () => {
+    const result = service.forEmptyResult({ category: 'roll' }, 'Роллы');
+
+    expect(result.reply_text).toContain('из категории Роллы');
+    expect(result.reply_text).not.toContain('roll');
+  });
+
+  it('falls back to the raw slot when the category was not resolved', () => {
+    const result = service.forEmptyResult({ category: 'roll' });
+
+    expect(result.reply_text).toContain('из категории roll');
+  });
+
+  it('mentions no category when the slot is absent', () => {
+    const result = service.forEmptyResult({ budget_max: 1000 });
+
+    expect(result.reply_text).not.toContain('из категории');
+  });
+});

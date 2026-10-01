@@ -108,3 +108,57 @@ describe('HybridRetrieverService — attribute scoring', () => {
     expect(withFilter[0].score).toBe(withoutFilter[0].score);
   });
 });
+
+describe('HybridRetrieverService — category scoring', () => {
+  it('boosts score when the product category is among the resolved ids', async () => {
+    const { service, catalogService } = makeService();
+
+    const inCategory = makeProduct({ id: 'p1', categoryId: 'CAT-ROLL' });
+    const outOfCategory = makeProduct({ id: 'p2', categoryId: 'CAT-DRINK' });
+    catalogService.findByCity.mockResolvedValue([inCategory, outOfCategory]);
+
+    const vectorSearch = (service as any).vectorSearch;
+    vectorSearch.search.mockResolvedValue([
+      { productId: 'p1', score: 0.5 },
+      { productId: 'p2', score: 0.5 },
+    ]);
+    const keywordSearch = (service as any).keywordSearch;
+    keywordSearch.search.mockResolvedValue([]);
+
+    const results = await service.retrieve({
+      query: 'роллы',
+      rn: 'rn',
+      br: 'br',
+      target: 'WEB',
+      filters: { categoryIds: ['CAT-ROLL', 'CAT-ROLL-PREMIUM'] },
+    });
+
+    const p1 = results.find((r) => r.product.id === 'p1');
+    const p2 = results.find((r) => r.product.id === 'p2');
+
+    expect(p1!.score).toBeGreaterThan(p2!.score);
+  });
+
+  it('gives no category boost when no ids were resolved', async () => {
+    const { service, catalogService } = makeService();
+    const product = makeProduct({ id: 'p1', categoryId: 'CAT-ROLL' });
+    catalogService.findByCity.mockResolvedValue([product]);
+
+    const withIds = await service.retrieve({
+      query: 'роллы',
+      rn: 'rn',
+      br: 'br',
+      target: 'WEB',
+      filters: { categoryIds: ['CAT-ROLL'] },
+    });
+    const withoutIds = await service.retrieve({
+      query: 'роллы',
+      rn: 'rn',
+      br: 'br',
+      target: 'WEB',
+      filters: {},
+    });
+
+    expect(withIds[0].score).toBeGreaterThan(withoutIds[0].score);
+  });
+});

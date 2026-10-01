@@ -127,8 +127,9 @@ export class AssistantOrchestratorService {
         fallbackPayload = suggestionResult.fallbackPayload;
       } else if (request.userMessage) {
         intentResult = await this.intentParser.parse(request.userMessage, {
-          screenContext: request.screenContext,
+          rn: request.rn,
           target: request.target,
+          screenContext: request.screenContext,
         });
       } else {
         const resp = this.fallback.forUnsupportedIntent();
@@ -152,7 +153,7 @@ export class AssistantOrchestratorService {
       }
 
       // 3. Build shortlist
-      const shortlist = await this.shortlistBuilder.build(
+      const { candidates: shortlist, categoryLabel } = await this.shortlistBuilder.buildWithContext(
         intentResult,
         request.rn,
         request.br,
@@ -163,7 +164,7 @@ export class AssistantOrchestratorService {
       if (shortlist.length === 0) {
         const resp = request.suggestionId
           ? this.fallback.forSuggestionEmpty(fallbackPayload)
-          : this.fallback.forEmptyResult(intentResult.slots);
+          : this.fallback.forEmptyResult(intentResult.slots, categoryLabel);
         await this.logRequest(
           requestId,
           request,
