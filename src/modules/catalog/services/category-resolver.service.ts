@@ -9,7 +9,11 @@ export interface CategoryOption {
 }
 
 export interface ResolvedCategory {
-  /** Values to match against products.category_id; empty means "no category filter". */
+  /**
+   * Values to match against products.category_id; empty means "no category filter".
+   * Both the directory id and the slug are returned: the catalog API puts the category
+   * SLUG into a product's `categoryId`, while the directory keeps its own id alongside it.
+   */
   categoryIds: string[];
   /** Display names of the matched categories, for user-facing texts. */
   labels: string[];
@@ -90,8 +94,10 @@ export class CategoryResolverService {
     const categoryIds: string[] = [];
     const labels: string[] = [];
     for (const row of chosen) {
-      if (categoryIds.includes(row.categoryId)) continue;
-      categoryIds.push(row.categoryId);
+      if (labels.includes(row.name)) continue;
+      for (const form of [row.categoryId, row.slug]) {
+        if (form && !categoryIds.includes(form)) categoryIds.push(form);
+      }
       labels.push(row.name);
     }
 

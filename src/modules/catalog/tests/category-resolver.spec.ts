@@ -47,20 +47,26 @@ describe('CategoryResolverService.resolve', () => {
     const result = await service.resolve(RN, TARGET, 'napitki');
 
     expect(result.matched).toBe(true);
-    expect(result.categoryIds).toEqual(['CAT-DRINK']);
+    expect(result.categoryIds).toEqual(['CAT-DRINK', 'napitki']);
     expect(result.labels).toEqual(['Напитки']);
   });
 
   it('matches by supplier category id', async () => {
     const result = await service.resolve(RN, TARGET, 'CAT-SET');
 
-    expect(result.categoryIds).toEqual(['CAT-SET']);
+    expect(result.categoryIds).toEqual(['CAT-SET', 'sety']);
+  });
+
+  it('returns both the directory id and the slug, because products store the slug', async () => {
+    const result = await service.resolve(RN, TARGET, 'Напитки');
+
+    expect(result.categoryIds).toEqual(['CAT-DRINK', 'napitki']);
   });
 
   it('matches by display name', async () => {
     const result = await service.resolve(RN, TARGET, 'Для вас');
 
-    expect(result.categoryIds).toEqual(['CAT-MAIN']);
+    expect(result.categoryIds).toEqual(['CAT-MAIN', 'main']);
   });
 
   it('ignores case and surrounding whitespace', async () => {
@@ -72,7 +78,7 @@ describe('CategoryResolverService.resolve', () => {
   it('returns every matching category when several match', async () => {
     const result = await service.resolve(RN, TARGET, 'роллы');
 
-    expect(result.categoryIds).toEqual(['CAT-ROLL', 'CAT-ROLL-PREMIUM']);
+    expect(result.categoryIds).toEqual(['CAT-ROLL', 'rolly', 'CAT-ROLL-PREMIUM', 'premium-rolly']);
     expect(result.labels).toEqual(['Роллы', 'Премиальные роллы']);
   });
 
@@ -128,7 +134,7 @@ describe('CategoryResolverService.resolve — match tiers', () => {
 
     const result = await service.resolve(RN, TARGET, 'блюда');
 
-    expect(result.categoryIds).toEqual(['CAT-D']);
+    expect(result.categoryIds).toEqual(['CAT-D', 'goryachie-blyuda']);
   });
 
   it('prefers a word match and does not add substring-only categories', async () => {
@@ -140,7 +146,7 @@ describe('CategoryResolverService.resolve — match tiers', () => {
 
     const result = await service.resolve(RN, TARGET, 'ролл');
 
-    expect(result.categoryIds).toEqual(['CAT-A']);
+    expect(result.categoryIds).toEqual(['CAT-A', 'roll']);
   });
 
   it('falls back to a substring match only when no word match exists', async () => {
@@ -152,7 +158,7 @@ describe('CategoryResolverService.resolve — match tiers', () => {
 
     const result = await service.resolve(RN, TARGET, 'ролл');
 
-    expect(result.categoryIds).toEqual(['CAT-B']);
+    expect(result.categoryIds).toEqual(['CAT-B', 'rolly']);
   });
 
   it('resolves the legacy preset slug "roll" against a russian catalog', async () => {
@@ -160,7 +166,7 @@ describe('CategoryResolverService.resolve — match tiers', () => {
 
     const result = await service.resolve(RN, TARGET, 'roll');
 
-    expect(result.categoryIds).toEqual(['CAT-ROLL', 'CAT-ROLL-PREMIUM']);
+    expect(result.categoryIds).toEqual(['CAT-ROLL', 'rolly', 'CAT-ROLL-PREMIUM', 'premium-rolly']);
   });
 
   it('resolves the legacy preset slug "set" against a russian catalog', async () => {
@@ -168,7 +174,7 @@ describe('CategoryResolverService.resolve — match tiers', () => {
 
     const result = await service.resolve(RN, TARGET, 'set');
 
-    expect(result.categoryIds).toEqual(['CAT-SET']);
+    expect(result.categoryIds).toEqual(['CAT-SET', 'sety']);
   });
 
   it('resolves the legacy preset slug "drink" against a russian catalog', async () => {
@@ -176,7 +182,7 @@ describe('CategoryResolverService.resolve — match tiers', () => {
 
     const result = await service.resolve(RN, TARGET, 'drink');
 
-    expect(result.categoryIds).toEqual(['CAT-DRINK']);
+    expect(result.categoryIds).toEqual(['CAT-DRINK', 'napitki']);
   });
 
   it('still resolves seeded catalogs where category_id equals the slot value', async () => {

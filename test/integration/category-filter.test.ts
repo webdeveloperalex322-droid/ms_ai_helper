@@ -11,9 +11,10 @@ const BR = 'br-prod';
 const TARGET = 'WEB';
 
 /**
- * Catalog shaped like a real import: products carry the supplier's category id, while the
- * category directory maps it to a slug/name. Before the fix the raw slot (`roll`) was compared
- * to `products.category_id` directly, so this shape always produced an empty shortlist.
+ * Catalog shaped like a real import: the directory maps a slug/name to the supplier's id,
+ * and products reference the category by whichever form the API sent — on the live catalog
+ * that is the SLUG (`rolly`), not the directory id. Before the fix the raw slot (`roll`) was
+ * compared to `products.category_id` directly, so this shape always produced an empty shortlist.
  */
 const CATEGORY_ROWS = [
   { categoryId: 'CAT-ROLL', slug: 'rolly', name: 'Роллы' },
@@ -26,7 +27,8 @@ const CATALOG_ROWS = [
     products: {
       id: 'p-roll-1',
       name: 'Филадельфия',
-      categoryId: 'CAT-ROLL',
+      // Live shape: the product stores the category slug.
+      categoryId: 'rolly',
       ingredients: ['лосось'],
       allergens: null,
       tags: null,
@@ -38,6 +40,7 @@ const CATALOG_ROWS = [
     products: {
       id: 'p-set-1',
       name: 'Сет Токио',
+      // Directory-id shape, as seeded/mock catalogs store it.
       categoryId: 'CAT-SET',
       ingredients: ['лосось'],
       allergens: null,
@@ -50,7 +53,7 @@ const CATALOG_ROWS = [
     products: {
       id: 'p-drink-1',
       name: 'Кола',
-      categoryId: 'CAT-DRINK',
+      categoryId: 'napitki',
       ingredients: null,
       allergens: null,
       tags: null,
