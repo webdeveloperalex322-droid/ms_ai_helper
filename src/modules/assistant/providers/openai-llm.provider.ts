@@ -6,14 +6,24 @@ import {
   IntentResult,
   RerankerInput,
   LLMRerankerResult,
+  KnowledgeAnswerInput,
+  KnowledgeAnswerResult,
 } from './llm.provider.interface';
 import {
   LLM_CLIENT_TOKEN,
   LlmClient,
   LlmClientError,
 } from '../../../common/llm/llm-client.interface';
-import { buildIntentParseMessages, buildRerankMessages } from '../../../common/llm/llm-prompts';
-import { parseIntentResponse, parseRerankResponse } from '../../../common/llm/llm-response.parser';
+import {
+  buildIntentParseMessages,
+  buildKnowledgeAnswerMessages,
+  buildRerankMessages,
+} from '../../../common/llm/llm-prompts';
+import {
+  parseIntentResponse,
+  parseKnowledgeAnswerResponse,
+  parseRerankResponse,
+} from '../../../common/llm/llm-response.parser';
 
 @Injectable()
 export class OpenAILLMProvider implements LLMProvider {
@@ -52,6 +62,21 @@ export class OpenAILLMProvider implements LLMProvider {
       return parseRerankResponse(response.content, input.candidates, maxCards);
     } catch (error) {
       this.logError('rerankAndAnswer', error);
+      throw error;
+    }
+  }
+
+  async answerFromKnowledge(input: KnowledgeAnswerInput): Promise<KnowledgeAnswerResult> {
+    try {
+      const response = await this.llmClient.chatCompletion({
+        messages: buildKnowledgeAnswerMessages(input),
+        response_format: { type: 'json_object' },
+        max_tokens: this.config.get<number>('LLM_MAX_TOKENS') ?? 1500,
+      });
+
+      return parseKnowledgeAnswerResponse(response.content, input.passages);
+    } catch (error) {
+      this.logError('answerFromKnowledge', error);
       throw error;
     }
   }

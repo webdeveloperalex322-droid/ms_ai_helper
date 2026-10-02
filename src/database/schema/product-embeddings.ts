@@ -1,18 +1,6 @@
-import { pgTable, uuid, text, timestamp, customType } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp } from 'drizzle-orm/pg-core';
 import { productChunks } from './product-chunks';
-
-// Custom type for pgvector
-const vector = customType<{ data: number[]; driverData: string }>({
-  dataType(config?: { dimensions?: number }) {
-    return config?.dimensions ? `vector(${config.dimensions})` : 'vector';
-  },
-  toDriver(value: number[]): string {
-    return `[${value.join(',')}]`;
-  },
-  fromDriver(value: string): number[] {
-    return value.replace('[', '').replace(']', '').split(',').map(Number);
-  },
-});
+import { vector } from './vector';
 
 export const productEmbeddings = pgTable('product_embeddings', {
   chunkId: uuid('chunk_id')

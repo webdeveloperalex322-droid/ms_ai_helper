@@ -12,6 +12,7 @@ import { IntentSlotParserService } from './intent-slot-parser.service';
 import { ShortlistBuilderService } from './shortlist-builder.service';
 import { ResponseValidatorService } from './response-validator.service';
 import { FallbackService } from './fallback.service';
+import { InfoAnswerService } from './info-answer.service';
 import { LLM_PROVIDER_TOKEN, LLMProvider, IntentResult } from '../providers/llm.provider.interface';
 import { eq, and, count } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
@@ -59,6 +60,7 @@ export class AssistantOrchestratorService {
     private readonly validator: ResponseValidatorService,
     private readonly fallback: FallbackService,
     private readonly config: ConfigService,
+    private readonly infoAnswer: InfoAnswerService,
   ) {}
 
   async handle(request: AssistantRequest): Promise<AssistantResponse> {
@@ -150,6 +152,18 @@ export class AssistantOrchestratorService {
           true,
         );
         return this.buildResponse(requestId, resp);
+      }
+
+      // 2b. Service question: answered from the site knowledge base, no product shortlist.
+      if (intentResult.intent === 'info_question') {
+        return this.handleInfoQuestion(
+          requestId,
+          request,
+          intentResult,
+          request.userMessage ?? retrievalQuery ?? '',
+          fallbackPayload,
+          start,
+        );
       }
 
       // 3. Build shortlist
@@ -289,6 +303,63 @@ export class AssistantOrchestratorService {
     }
   }
 
+  private async handleInfoQuestion(
+    requestId: string,
+    request: AssistantRequest,
+    intentResult: IntentResult,
+    question: string,
+    fallbackPayload: { reply_text: string; quick_replies: string[] } | null,
+    start: number,
+  ): Promise<AssistantResponse> {
+    const info = await this.infoAnswer.answer({
+      question,
+      rn: request.rn,
+      br: request.br,
+      target: request.target,
+    });
+
+    if (info.kind === 'empty') {
+      // Knowledge base empty for this city: behave exactly as before this feature.
+      const resp = request.suggestionId
+        ? this.fallback.forSuggestionEmpty(fallbackPayload)
+        : this.fallback.forUnsupportedIntent();
+      await this.logRequest(
+        requestId,
+        request,
+        intentResult,
+        [],
+        [],
+        'info_empty',
+        Date.now() - start,
+        true,
+        { kind: 'info', sources: [], not_found: true },
+      );
+      return this.buildResponse(requestId, resp);
+    }
+
+    await this.logRequest(
+      requestId,
+      request,
+      intentResult,
+      [],
+      [],
+      `info_${info.kind}`,
+      Date.now() - start,
+      info.kind === 'timeout',
+      { kind: 'info', sources: info.sources, not_found: info.kind === 'not_found' },
+    );
+
+    return {
+      request_id: requestId,
+      reply_text: info.reply_text,
+      cards: [],
+      quick_replies: info.quick_replies,
+      actions: info.actions,
+      need_clarification: false,
+      clarification_question: null,
+    };
+  }
+
   private async loadSuggestion(suggestionId: string, rn: string, br: string, target: string) {
     const [suggestion] = await this.db
       .select()
@@ -395,9 +466,11 @@ export class AssistantOrchestratorService {
     validationStatus: string,
     latencyMs: number,
     fallbackUsed: boolean,
+    llmResponse?: Record<string, unknown>,
   ): Promise<void> {
     try {
       await this.db.insert(aiLogs).values({
+        llmResponse: llmResponse ?? null,
         requestId,
         sessionId: request.sessionId ?? null,
         rn: request.rn,

@@ -5,7 +5,55 @@ import {
   IntentResult,
   RerankerInput,
   LLMRerankerResult,
+  KnowledgeAnswerInput,
+  KnowledgeAnswerResult,
 } from './llm.provider.interface';
+
+/** Questions about a specific order or the account stay unsupported: there is no personal data in the knowledge base. */
+const ORDER_ACCOUNT_KEYWORDS = [
+  'статус заказ',
+  'где мой заказ',
+  'мой заказ',
+  'история заказ',
+  'историю заказ',
+  'истории заказ',
+  'личный кабинет',
+  'отменить заказ',
+];
+
+/** Service topics answered from the site knowledge base. */
+const INFO_KEYWORDS = [
+  'доставк',
+  'оплат',
+  'оплач',
+  'бонус',
+  'кешбэк',
+  'кэшбэк',
+  'балл',
+  'акци',
+  'промокод',
+  'скидк',
+  'адрес',
+  'ресторан',
+  'работает',
+  'работаете',
+  'режим работы',
+  'часы работы',
+  'до скольки',
+  'самовывоз',
+  'о компании',
+  'кто вы',
+  'оферт',
+  'персональн',
+  'конфиденц',
+  'связаться',
+  'поддержк',
+  'телефон',
+  'минимальн',
+];
+
+const MOCK_INFO_QUICK_REPLIES = ['Условия доставки', 'Бонусная программа', 'Адреса ресторанов'];
+const MOCK_EXCERPT_CHARS = 300;
 
 @Injectable()
 export class MockLLMProvider implements LLMProvider {
@@ -42,9 +90,37 @@ export class MockLLMProvider implements LLMProvider {
     };
   }
 
+  /** Offline stand-in: quotes the top passage instead of reasoning over it. */
+  async answerFromKnowledge(input: KnowledgeAnswerInput): Promise<KnowledgeAnswerResult> {
+    const first = input.passages[0];
+    if (!first) {
+      return {
+        answer_text: 'На сайте нет информации по этому вопросу.',
+        used_passage_ids: [],
+        not_found: true,
+        quick_replies: MOCK_INFO_QUICK_REPLIES,
+      };
+    }
+
+    // The passage text starts with its "title › heading" line; the body follows.
+    const body = first.text.split('\n').slice(1).join('\n').trim() || first.text;
+    const excerpt =
+      body.length > MOCK_EXCERPT_CHARS ? `${body.slice(0, MOCK_EXCERPT_CHARS).trimEnd()}…` : body;
+
+    return {
+      answer_text: `${excerpt}\n\nПодробнее на странице: ${first.title}`,
+      used_passage_ids: [first.id],
+      not_found: false,
+      quick_replies: MOCK_INFO_QUICK_REPLIES,
+    };
+  }
+
   private detectIntent(msg: string): string {
-    if (this.containsAny(msg, ['заказ', 'статус', 'доставк', 'где мой'])) {
+    if (this.containsAny(msg, ORDER_ACCOUNT_KEYWORDS)) {
       return 'unsupported';
+    }
+    if (this.containsAny(msg, INFO_KEYWORDS)) {
+      return 'info_question';
     }
     if (this.containsAny(msg, ['чем отличается', 'сравни', 'versus', 'vs'])) {
       return 'product_compare';

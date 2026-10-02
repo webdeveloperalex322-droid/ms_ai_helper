@@ -12,3 +12,6 @@ export * from './suggestion-events';
 export * from './admin-rules';
 export * from './import-jobs';
 export * from './product-attributes';
+export * from './site-pages';
+export * from './site-page-chunks';
+export * from './site-page-embeddings';

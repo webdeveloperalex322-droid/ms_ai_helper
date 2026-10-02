@@ -13,6 +13,7 @@ import { HealthController } from './healthcheck/health.controller';
 import { CatalogImportModule } from './modules/catalog-import/catalog-import.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { RagModule } from './modules/rag/rag.module';
+import { SiteKnowledgeModule } from './modules/site-knowledge/site-knowledge.module';
 import { AssistantModule } from './modules/assistant/assistant.module';
 import { SuggestionsModule } from './modules/suggestions/suggestions.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
@@ -51,6 +52,7 @@ import { AdminModule } from './modules/admin/admin.module';
     CatalogImportModule,
     CatalogModule,
     RagModule,
+    SiteKnowledgeModule,
     AssistantModule,
     SuggestionsModule,
     AnalyticsModule,

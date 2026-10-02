@@ -1,8 +1,50 @@
 import {
   IntentResult,
+  KnowledgeAnswerResult,
+  KnowledgePassageInput,
   LLMRerankerResult,
   ProductCandidate,
 } from '../../modules/assistant/providers/llm.provider.interface';
+
+const DEFAULT_KNOWLEDGE_ANSWER = 'Подробности смотрите на странице сайта.';
+const MAX_QUICK_REPLIES = 3;
+
+/**
+ * Normalizes the model's answer to a service question: only passage ids the
+ * model was actually given survive, booleans are coerced, blank text gets a
+ * neutral default so the caller can always show something next to the link.
+ */
+export function parseKnowledgeAnswerResponse(
+  raw: string,
+  passages: KnowledgePassageInput[],
+): KnowledgeAnswerResult {
+  const parsed = parseJson(raw);
+  const allowedIds = new Set(passages.map((p) => p.id));
+
+  const usedIds = Array.isArray(parsed.used_passage_ids)
+    ? parsed.used_passage_ids.filter(
+        (id: unknown): id is string => typeof id === 'string' && allowedIds.has(id),
+      )
+    : [];
+
+  const quickReplies = Array.isArray(parsed.quick_replies)
+    ? parsed.quick_replies
+        .filter((item: unknown): item is string => typeof item === 'string' && item.trim() !== '')
+        .slice(0, MAX_QUICK_REPLIES)
+    : undefined;
+
+  const answerText =
+    typeof parsed.answer_text === 'string' && parsed.answer_text.trim()
+      ? parsed.answer_text.trim()
+      : DEFAULT_KNOWLEDGE_ANSWER;
+
+  return {
+    answer_text: answerText,
+    used_passage_ids: [...new Set(usedIds)],
+    not_found: Boolean(parsed.not_found),
+    quick_replies: quickReplies,
+  };
+}
 
 export function parseIntentResponse(raw: string): IntentResult {
   const parsed = parseJson(raw);
@@ -65,7 +107,7 @@ function parseJson(raw: string): Record<string, any> {
     : trimmed;
 
   const parsed = JSON.parse(jsonText);
-  if (typeof parsed !== 'object' || parsed === null) {
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     throw new Error('LLM response is not a JSON object');
   }
   return parsed;
