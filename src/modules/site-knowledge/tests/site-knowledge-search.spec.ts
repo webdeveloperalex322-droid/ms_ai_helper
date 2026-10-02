@@ -82,14 +82,14 @@ describe('SiteKnowledgeSearchService.search', () => {
 
     const result = await service.search({ ...input, topK: 4 });
 
-    expect(result.map((p) => p.chunkId)).toEqual(['l0', 'l1', 'd1']);
-    expect(result.filter((p) => p.pageId === 'oferta')).toHaveLength(2);
+    expect(result.map((p) => p.chunkId)).toEqual(['l0', 'l1', 'l2', 'd1']);
+    expect(result.filter((p) => p.pageId === 'oferta')).toHaveLength(3);
   });
 
-  it('defaults topK to 6', async () => {
-    const semantic = Array.from({ length: 10 }, (_, i) => hit(`s${i}`, 1 - i / 10));
+  it('defaults topK to 8', async () => {
+    const semantic = Array.from({ length: 12 }, (_, i) => hit(`s${i}`, 1 - i / 12));
     const service = new TestSearch(semantic, []);
-    expect(await service.search(input)).toHaveLength(6);
+    expect(await service.search(input)).toHaveLength(8);
   });
 
   it('falls back to the other branch when one throws', async () => {
