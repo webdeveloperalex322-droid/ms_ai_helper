@@ -74,16 +74,16 @@ describe('SiteKnowledgeSearchService.search', () => {
   });
 
   it('caps passages per page so one long document cannot fill the whole result', async () => {
-    const legal = Array.from({ length: 6 }, (_, i) =>
+    const legal = Array.from({ length: 9 }, (_, i) =>
       hit(`l${i}`, 0.9 - i / 100, { pageId: 'oferta' }),
     );
     const delivery = hit('d1', 0.5, { pageId: 'delivery' });
     const service = new TestSearch([...legal, delivery], []);
 
-    const result = await service.search({ ...input, topK: 5 });
+    const result = await service.search({ ...input, topK: 7 });
 
-    expect(result.map((p) => p.chunkId)).toEqual(['l0', 'l1', 'l2', 'l3', 'd1']);
-    expect(result.filter((p) => p.pageId === 'oferta')).toHaveLength(4);
+    expect(result.map((p) => p.chunkId)).toEqual(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'd1']);
+    expect(result.filter((p) => p.pageId === 'oferta')).toHaveLength(6);
   });
 
   it('defaults topK to 10', async () => {
