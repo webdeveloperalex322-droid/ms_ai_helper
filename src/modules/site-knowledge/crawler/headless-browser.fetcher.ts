@@ -11,6 +11,8 @@ const READY_POLL_MS = 1000;
 const MIN_READY_WAIT_MS = 15_000;
 const SETTLE_AFTER_NAVIGATION_MS = 2000;
 const CAPTURE_ATTEMPTS = 4;
+const FETCH_ATTEMPTS = 3;
+const RETRY_PAUSE_MS = 5000;
 const DEFAULT_PROTOCOL_TIMEOUT_MS = 600_000;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -95,13 +97,19 @@ export class HeadlessBrowserFetcher implements PageFetcher {
 
   async fetch(url: string, options: FetchOptions): Promise<FetchedPage> {
     // The site sometimes re-navigates right after load (city redirect, router
-    // replace); the evaluation context dies and puppeteer throws. One retry.
-    try {
-      return await this.fetchOnce(url, options);
-    } catch (err) {
-      if (!isContextDestroyed(err)) throw err;
-      return this.fetchOnce(url, options);
+    // replace) so the evaluation context dies, and it drops connections under
+    // load (ERR_CONNECTION_CLOSED / ERR_TIMED_OUT). Both are worth a retry.
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= FETCH_ATTEMPTS; attempt++) {
+      try {
+        return await this.fetchOnce(url, options);
+      } catch (err) {
+        lastError = err;
+        if (!isContextDestroyed(err) && !isTransientNetworkError(err)) throw err;
+        if (attempt < FETCH_ATTEMPTS) await sleep(RETRY_PAUSE_MS * attempt);
+      }
     }
+    throw lastError;
   }
 
   private async fetchOnce(url: string, options: FetchOptions): Promise<FetchedPage> {
@@ -193,7 +201,14 @@ export class HeadlessBrowserFetcher implements PageFetcher {
 
 function isContextDestroyed(err: unknown): boolean {
   const message = err instanceof Error ? err.message : String(err);
-  return /execution context was destroyed|Cannot find context|Target closed|frame was detached/i.test(
+  return /execution context was destroyed|Cannot find context|Target closed|frame was detached|detached Frame|Session closed/i.test(
+    message,
+  );
+}
+
+function isTransientNetworkError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /net::ERR_(TIMED_OUT|CONNECTION_CLOSED|CONNECTION_RESET|CONNECTION_REFUSED|EMPTY_RESPONSE|NETWORK_CHANGED|HTTP2_PROTOCOL_ERROR)/i.test(
     message,
   );
 }
