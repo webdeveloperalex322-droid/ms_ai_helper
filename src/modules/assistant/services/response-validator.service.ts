@@ -32,6 +32,8 @@ const ALLERGY_SAFETY_PATTERNS = [
   'не содержит аллергенов',
 ];
 
+const MAX_FREE_TEXT_CHARS = 1200;
+
 const BANNED_TOPICS = [
   'история заказ',
   'статус заказ',
@@ -190,6 +192,35 @@ export class ResponseValidatorService {
 
     for (const pattern of ALLERGY_SAFETY_PATTERNS) {
       sanitized = sanitized.replace(new RegExp(pattern, 'gi'), 'уточните состав у ресторана');
+    }
+
+    return sanitized;
+  }
+
+  /**
+   * Sanitizer for free-text answers that are not about products (service
+   * questions answered from the site knowledge base). Only the medical-safety
+   * patterns apply: BANNED_TOPICS lists delivery/payment/bonuses on purpose for
+   * product answers, and those are exactly the topics a service answer covers.
+   */
+  sanitizeFreeText(text: string): string {
+    let sanitized = (text ?? '').trim();
+
+    for (const pattern of ALLERGY_SAFETY_PATTERNS) {
+      sanitized = sanitized.replace(new RegExp(pattern, 'gi'), 'уточните состав у ресторана');
+    }
+
+    if (sanitized.length > MAX_FREE_TEXT_CHARS) {
+      const cut = sanitized.slice(0, MAX_FREE_TEXT_CHARS);
+      const sentenceEnd = Math.max(
+        cut.lastIndexOf('. '),
+        cut.lastIndexOf('! '),
+        cut.lastIndexOf('? '),
+      );
+      sanitized = (
+        sentenceEnd > MAX_FREE_TEXT_CHARS / 2 ? cut.slice(0, sentenceEnd + 1) : cut
+      ).trimEnd();
+      if (!/[.!?…]$/.test(sanitized)) sanitized += '…';
     }
 
     return sanitized;

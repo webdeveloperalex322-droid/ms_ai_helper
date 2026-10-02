@@ -60,7 +60,33 @@ export interface LLMRerankerResult {
   clarification_question?: string | null;
 }
 
+/** A fragment of a site page handed to the model as grounding for a service question. */
+export interface KnowledgePassageInput {
+  id: string;
+  title: string;
+  heading?: string | null;
+  url: string;
+  text: string;
+}
+
+export interface KnowledgeAnswerInput {
+  question: string;
+  passages: KnowledgePassageInput[];
+  city_name?: string;
+}
+
+export interface KnowledgeAnswerResult {
+  /** Russian answer grounded in the passages, or a short "not on the site" note. */
+  answer_text: string;
+  /** Subset of the input passage ids the answer relied on. */
+  used_passage_ids: string[];
+  /** True when the passages do not contain the answer. */
+  not_found: boolean;
+  quick_replies?: string[];
+}
+
 export interface LLMProvider {
   parseIntent(input: IntentParseInput): Promise<IntentResult>;
   rerankAndAnswer(input: RerankerInput): Promise<LLMRerankerResult>;
+  answerFromKnowledge(input: KnowledgeAnswerInput): Promise<KnowledgeAnswerResult>;
 }

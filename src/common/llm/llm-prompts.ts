@@ -1,5 +1,7 @@
 import {
   IntentParseInput,
+  KnowledgeAnswerInput,
+  KnowledgePassageInput,
   ProductCandidate,
   RerankerInput,
 } from '../../modules/assistant/providers/llm.provider.interface';
@@ -11,6 +13,7 @@ const INTENT_VALUES = [
   'product_filter',
   'nutrition_question',
   'allergen_question',
+  'info_question',
   'unsupported',
 ] as const;
 
@@ -26,7 +29,12 @@ export function buildIntentParseMessages(input: IntentParseInput) {
   excluded_product_names, allergy_risk (boolean).
 
 Правила:
-- unsupported — вопросы про заказ, доставку, оплату, бонусы, промокоды.
+- info_question — вопросы о сервисе, а не о конкретных блюдах: доставка (стоимость, зоны, время,
+  минимальный заказ), оплата, бонусы и кешбэк, акции и промокоды, адреса и часы работы ресторанов,
+  самовывоз, компания, юридические условия, контакты поддержки.
+- unsupported — статус или история конкретного заказа, личный кабинет, жалобы, темы вне доставки еды.
+- Если в вопросе упомянуто блюдо или категория меню — это товарный intent, даже если рядом есть слова
+  про доставку или цену.
 - budget_max — число в рублях, если пользователь указал бюджет («до 1500»).
 - excluded_ingredients — ингредиенты после «без».
 - need_clarification=true только если без уточнения нельзя подобрать товары.
@@ -92,6 +100,54 @@ export function buildRerankMessages(input: RerankerInput) {
     { role: 'system' as const, content: system },
     { role: 'user' as const, content: userContent },
   ];
+}
+
+/**
+ * Service question answered from site page fragments. The model is pinned to
+ * the passages: no invented prices, hours or addresses, and an explicit
+ * `not_found` when the passages do not cover the question.
+ */
+export function buildKnowledgeAnswerMessages(input: KnowledgeAnswerInput) {
+  const system = `Ты помощник службы доставки суши «Суши Мастер». Отвечаешь на вопросы о сервисе:
+доставка, оплата, бонусы, акции, рестораны, компания, условия.
+
+Правила:
+- Отвечай ТОЛЬКО по приведённым фрагментам страниц сайта. Не выдумывай цены, сроки, адреса,
+  проценты и условия, которых нет во фрагментах.
+- Если во фрагментах нет ответа на вопрос — поставь not_found: true и коротко скажи, что на сайте
+  такой информации нет, и предложи уточнить у поддержки ресторана.
+- Не давай медицинских гарантий (по аллергиям и т. п.).
+- Отвечай кратко (до 600 символов), по-русски, дружелюбно, без markdown внутри текста.
+- В used_passage_ids перечисли id фрагментов, на которые опирался ответ.
+- quick_replies — до 3 коротких следующих вопросов по теме.
+- Верни ТОЛЬКО валидный JSON без markdown.`;
+
+  const passages = input.passages.map((p) => formatPassage(p)).join('\n\n');
+
+  const userContent = [
+    `Вопрос пользователя: ${input.question}`,
+    input.city_name ? `Город: ${input.city_name}` : null,
+    `Фрагменты страниц сайта (${input.passages.length}):\n${passages}`,
+    `Формат ответа:
+{
+  "answer_text": "ответ пользователю",
+  "used_passage_ids": ["id1"],
+  "not_found": false,
+  "quick_replies": ["вопрос 1", "вопрос 2"]
+}`,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  return [
+    { role: 'system' as const, content: system },
+    { role: 'user' as const, content: userContent },
+  ];
+}
+
+function formatPassage(passage: KnowledgePassageInput): string {
+  const header = passage.heading ? `${passage.title} › ${passage.heading}` : passage.title;
+  return `[${passage.id}] ${header}\n${passage.text}`;
 }
 
 function formatCandidate(candidate: ProductCandidate): string {

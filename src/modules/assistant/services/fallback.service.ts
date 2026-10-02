@@ -12,8 +12,60 @@ export interface FallbackResponse {
   fallback_used: true;
 }
 
+/** A site page the answer can point to. */
+export interface InfoSource {
+  url: string;
+  title: string;
+}
+
+/** The best knowledge fragment found for a service question. */
+export interface InfoPassageSummary extends InfoSource {
+  text: string;
+}
+
+export const INFO_QUICK_REPLIES = ['Условия доставки', 'Бонусная программа', 'Адреса ресторанов'];
+const INFO_EXCERPT_CHARS = 400;
+
+export function openUrlAction(source: InfoSource) {
+  return { type: 'open_url', url: source.url, title: source.title };
+}
+
 @Injectable()
 export class FallbackService {
+  /**
+   * The model did not answer in time (or failed) for a service question:
+   * quote the most relevant fragment of the site and link to its page.
+   */
+  forInfoTimeout(best: InfoPassageSummary): FallbackResponse {
+    // The passage text starts with its "title › heading" line; show the body.
+    const body = best.text.split('\n').slice(1).join('\n').trim() || best.text.trim();
+    const excerpt =
+      body.length > INFO_EXCERPT_CHARS ? `${body.slice(0, INFO_EXCERPT_CHARS).trimEnd()}…` : body;
+
+    return {
+      reply_text: `${excerpt}\n\nПодробнее: ${best.title}`,
+      cards: [],
+      quick_replies: INFO_QUICK_REPLIES,
+      actions: [openUrlAction(best)],
+      need_clarification: false,
+      fallback_used: true,
+    };
+  }
+
+  /** The site has no answer to the question; point to the closest page if there is one. */
+  forInfoNotFound(source?: InfoSource): FallbackResponse {
+    return {
+      reply_text:
+        'На сайте нет такой информации. Уточните вопрос или обратитесь в поддержку ресторана.' +
+        (source ? ` Ближайшая по теме страница: ${source.title}.` : ''),
+      cards: [],
+      quick_replies: INFO_QUICK_REPLIES,
+      actions: source ? [openUrlAction(source)] : [],
+      need_clarification: false,
+      fallback_used: true,
+    };
+  }
+
   forUnsupportedIntent(): FallbackResponse {
     return {
       reply_text:
