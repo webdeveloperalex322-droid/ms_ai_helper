@@ -316,6 +316,38 @@ const SUGGESTIONS = [
       quick_replies: ['Показать популярное', 'Показать все роллы'],
     },
   },
+  // Service presets (spec 011): answered from the site knowledge base, not
+  // from the catalog — so the "products exist" availability check is off.
+  {
+    code: 'info_delivery',
+    title: '🚚 Условия доставки и оплаты',
+    sortOrder: 300,
+    payload: {
+      intent: 'info_question',
+      slots: {},
+      retrieval_query: 'условия доставки и способы оплаты заказа',
+    },
+    availabilityRules: { ...DEFAULT_AVAILABILITY_RULES, check_products_exist: false },
+    fallbackPayload: {
+      reply_text: 'Условия доставки и оплаты смотрите в разделе «Доставка» на сайте.',
+      quick_replies: ['Показать популярное', 'Подобрать сет'],
+    },
+  },
+  {
+    code: 'info_bonus',
+    title: '🎁 Бонусная программа',
+    sortOrder: 310,
+    payload: {
+      intent: 'info_question',
+      slots: {},
+      retrieval_query: 'бонусная программа кешбэк баллы как начисляются и списываются',
+    },
+    availabilityRules: { ...DEFAULT_AVAILABILITY_RULES, check_products_exist: false },
+    fallbackPayload: {
+      reply_text: 'Правила бонусной программы смотрите в разделе «Бонусы» на сайте.',
+      quick_replies: ['Показать популярное', 'Подобрать сет'],
+    },
+  },
 ];
 
 export async function seedSuggestions(db: DrizzleDB, rn = DEFAULT_RN): Promise<void> {
@@ -332,7 +364,7 @@ export async function seedSuggestions(db: DrizzleDB, rn = DEFAULT_RN): Promise<v
         screenContext: 'catalog',
         target: 'WEB',
         payload: s.payload as any,
-        availabilityRules: DEFAULT_AVAILABILITY_RULES,
+        availabilityRules: (s as any).availabilityRules ?? DEFAULT_AVAILABILITY_RULES,
         fallbackPayload: s.fallbackPayload,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -342,6 +374,7 @@ export async function seedSuggestions(db: DrizzleDB, rn = DEFAULT_RN): Promise<v
         set: {
           title: s.title,
           payload: s.payload as any,
+          availabilityRules: (s as any).availabilityRules ?? DEFAULT_AVAILABILITY_RULES,
           fallbackPayload: s.fallbackPayload,
           updatedAt: new Date(),
         },
