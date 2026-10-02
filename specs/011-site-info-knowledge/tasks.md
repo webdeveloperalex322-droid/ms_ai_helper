@@ -80,8 +80,8 @@ description: "Task list for 011-site-info-knowledge"
 - [X] T026 [US2] Реализовать `SitePageImportService.importSnapshot(snapshot, options)` в `src/modules/site-knowledge/services/site-page-import.service.ts` по [contracts/cli-site-import.md](./contracts/cli-site-import.md) и переходам [data-model.md](./data-model.md#переходы-состояний); транзакция `db.transaction` на страницу
 - [X] T027 [US2] Зарегистрировать `SitePageIndexerService`, `SitePageImportService`, `HtmlTextExtractor` в `src/modules/site-knowledge/site-knowledge.module.ts`
 - [X] T028 [US2] Написать CLI `scripts/site-import.ts` по контракту: `readSnapshot`, сборка сервисов вручную (как `scripts/rag-index-all.ts`: `drizzle` + `Pool`, провайдер по `EMBEDDING_PROVIDER`), отчёт, коды возврата
-- [ ] T029 [US2] Собрать снимок Тюмени: `pnpm site:crawl --url https://tyumen.sushi-master.ru --rn A79C5050-1EE7-11EB-9B6E-05B5FC40DF2A --br E3AFD1AC-4D3D-EA11-A958-8B023DE8EF69 --out data/site-pages/tyumen.json`; проверить глазами по quickstart шаг 2; при `failed` — повторить прогон только для этих путей через `--pages` и слить вручную, либо увеличить `--page-timeout`
-- [ ] T030 [US2] Загрузить снимок локально: `pnpm site:import data/site-pages/tyumen.json`, повтор → все `skipped`, `--dry-run` → без записи; проверить SQL из quickstart шаг 3
+- [X] T029 [US2] Собрать снимок Тюмени: `pnpm site:crawl --url https://tyumen.sushi-master.ru --rn A79C5050-1EE7-11EB-9B6E-05B5FC40DF2A --br E3AFD1AC-4D3D-EA11-A958-8B023DE8EF69 --out data/site-pages/tyumen.json`; проверить глазами по quickstart шаг 2; при `failed` — повторить прогон только для этих путей через `--pages` и слить вручную, либо увеличить `--page-timeout`
+- [X] T030 [US2] Загрузить снимок локально: `pnpm site:import data/site-pages/tyumen.json`, повтор → все `skipped`, `--dry-run` → без записи; проверить SQL из quickstart шаг 3
 
 **Checkpoint**: база Тюмени заполнена, все чанки `ready`, повторный импорт не обращается к поставщику векторов (SC-003, SC-004).
 
@@ -118,7 +118,7 @@ description: "Task list for 011-site-info-knowledge"
 - [X] T045 [P] [US1] Написать падающий интеграционный тест `test/integration/info-question.test.ts`: оркестратор с фейковой БД (город активен, товаров > 0, `insert(aiLogs)` перехватывается), фейковыми `IntentSlotParserService` (возвращает `info_question`), `InfoAnswerService`, `ShortlistBuilderService` (должен НЕ вызываться): ответ содержит `reply_text`, `cards: []`, `actions[0].type === 'open_url'`; лог `intent='info_question'`, `validation_status='info_answer'`, `llm_response.sources`; `kind: 'empty'` → текст `forUnsupportedIntent`, `validation_status='info_empty'`, `fallback_used=true`; `kind: 'timeout'` → `info_timeout`; пресет с `payload.intent='info_question'` → вопрос берётся из `retrieval_query`; интент `product_recommendation` → `ShortlistBuilderService` вызван (регресс)
 - [X] T046 [US1] Реализовать ветку `info_question` в `src/modules/assistant/services/assistant-orchestrator.service.ts` сразу после определения намерения и до `buildWithContext`; `logRequest` расширить необязательным `llmResponse`; `AssistantResponse.actions` допускает `{ type: 'open_url', url, title }`
 - [X] T047 [US1] Зарегистрировать `InfoAnswerService` в `src/modules/assistant/assistant.module.ts`, импортировать `SiteKnowledgeModule`; `pnpm build` проходит
-- [ ] T048 [US1] Ручная проверка по quickstart шаг 4 с `LLM_PROVIDER=mock` и, при наличии ключа, `LLM_PROVIDER=openai`: набор из 20 вопросов, регресс товарного пути; зафиксировать результаты в `specs/011-site-info-knowledge/quickstart.md` (раздел «Результаты проверки»)
+- [X] T048 [US1] Ручная проверка по quickstart шаг 4 с `LLM_PROVIDER=mock` и, при наличии ключа, `LLM_PROVIDER=openai`: набор из 20 вопросов, регресс товарного пути; зафиксировать результаты в `specs/011-site-info-knowledge/quickstart.md` (раздел «Результаты проверки»)
 
 **Checkpoint**: MVP — сервисные вопросы отвечаются из базы знаний, товарные тесты зелёные (SC-001, SC-002, SC-006).
 
@@ -130,19 +130,19 @@ description: "Task list for 011-site-info-knowledge"
 
 **Independent Test**: создать пресет «Условия доставки» (`retrieval_query: 'условия доставки'`, `check_products_exist: false`), нажать → ответ со страницы `/delivery`.
 
-- [ ] T049 [P] [US3] Добавить в `seeds/index.ts` два пресета для `DEFAULT_RN`: «Условия доставки» (`info_question`, `retrieval_query: 'условия доставки и способы оплаты'`) и «Бонусная программа» (`retrieval_query: 'бонусная программа кешбэк'`), `availability_rules.check_products_exist: false`, `fallback_payload` с текстом про сайт
-- [ ] T050 [US3] Проверить, что `src/modules/suggestions/services/suggestion.service.ts` отдаёт такие пресеты без проверки товаров (`check_products_exist=false`) и `payload_preview.intent='info_question'`; при необходимости — только правка данных, не кода
-- [ ] T051 [US3] Ручная проверка: `GET /v1/suggestions` содержит пресеты, `POST product-answer` с `suggestion_id` отвечает из базы знаний; при пустой базе — `fallback_payload`
+- [X] T049 [P] [US3] Добавить в `seeds/index.ts` два пресета для `DEFAULT_RN`: «Условия доставки» (`info_question`, `retrieval_query: 'условия доставки и способы оплаты'`) и «Бонусная программа» (`retrieval_query: 'бонусная программа кешбэк'`), `availability_rules.check_products_exist: false`, `fallback_payload` с текстом про сайт
+- [X] T050 [US3] Проверить, что `src/modules/suggestions/services/suggestion.service.ts` отдаёт такие пресеты без проверки товаров (`check_products_exist=false`) и `payload_preview.intent='info_question'`; при необходимости — только правка данных, не кода
+- [X] T051 [US3] Ручная проверка: `GET /v1/suggestions` содержит пресеты, `POST product-answer` с `suggestion_id` отвечает из базы знаний; при пустой базе — `fallback_payload`
 
 ---
 
 ## Phase 6: Polish & Cross-Cutting
 
-- [ ] T052 [P] Обновить `CLAUDE.md`: команды `pnpm site:crawl`, `pnpm site:import`, упоминание `data/site-pages/`, замечание «без импорта снимка сервисные вопросы получают отказ»
-- [ ] T053 [P] Обновить `docs/knowledge/modules.md` (модуль `site-knowledge`, CLI, таблицы), `docs/knowledge/glossary.md` (`info_question`, снимок, фрагмент страницы), `docs/knowledge/architecture.md` (ветка info в шаге 1–2 пайплайна)
-- [ ] T054 [P] Добавить ADR в `docs/knowledge/decisions.md`: «ADR-014: знания сайта собираются рендером в браузере офлайн, снимок хранится в репозитории» и «ADR-015: отдельные таблицы знаний сайта, индексатор без обобщения EmbeddingService» (контекст, почему, последствия, где)
-- [ ] T055 [P] Обновить `README.md`: раздел «База знаний сайта» (кратко, со ссылкой на quickstart)
-- [ ] T056 `pnpm lint && pnpm format && pnpm test && pnpm build` — всё зелёное; закоммитить работу осмысленными коммитами (схема+миграция; краулер; импорт; ответ; снимок; документация)
+- [X] T052 [P] Обновить `CLAUDE.md`: команды `pnpm site:crawl`, `pnpm site:import`, упоминание `data/site-pages/`, замечание «без импорта снимка сервисные вопросы получают отказ»
+- [X] T053 [P] Обновить `docs/knowledge/modules.md` (модуль `site-knowledge`, CLI, таблицы), `docs/knowledge/glossary.md` (`info_question`, снимок, фрагмент страницы), `docs/knowledge/architecture.md` (ветка info в шаге 1–2 пайплайна)
+- [X] T054 [P] Добавить ADR в `docs/knowledge/decisions.md`: «ADR-014: знания сайта собираются рендером в браузере офлайн, снимок хранится в репозитории» и «ADR-015: отдельные таблицы знаний сайта, индексатор без обобщения EmbeddingService» (контекст, почему, последствия, где)
+- [X] T055 [P] Обновить `README.md`: раздел «База знаний сайта» (кратко, со ссылкой на quickstart)
+- [X] T056 `pnpm lint && pnpm format && pnpm test && pnpm build` — всё зелёное; закоммитить работу осмысленными коммитами (схема+миграция; краулер; импорт; ответ; снимок; документация)
 
 ---
 
