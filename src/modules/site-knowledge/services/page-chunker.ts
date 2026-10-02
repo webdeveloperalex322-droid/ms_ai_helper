@@ -61,11 +61,26 @@ function splitIntoSections(content: string, title: string): Section[] {
   const sections: Section[] = [];
   const stack: string[] = []; // heading text per level (index = level - 1)
   let bodyLines: string[] = [];
+  /** Level of the last heading, while it has neither body nor child heading yet. */
+  let orphanLevel: number | null = null;
 
-  const flush = () => {
+  /**
+   * Flushes the current body. A heading that got no body and is now followed
+   * by a sibling/parent heading (or the end of the page) is content in its
+   * own right — landing pages say things like "через 90 дней бонусы
+   * обнуляются!" in a bare <h2> — so it is emitted as the body of its parent
+   * path instead of being dropped. A heading followed by a deeper heading is a
+   * section title and lives on in the children's path.
+   */
+  const flush = (nextLevel: number | null) => {
     const body = bodyLines.join('\n').trim();
     if (body) {
       sections.push({ path: stack.filter(Boolean), body });
+    } else if (orphanLevel !== null && (nextLevel === null || nextLevel <= orphanLevel)) {
+      const heading = stack[orphanLevel - 1];
+      if (heading) {
+        sections.push({ path: stack.slice(0, orphanLevel - 1).filter(Boolean), body: heading });
+      }
     }
     bodyLines = [];
   };
@@ -76,6 +91,7 @@ function splitIntoSections(content: string, title: string): Section[] {
 
     if (!match) {
       bodyLines.push(line);
+      if (line.trim()) orphanLevel = null;
       continue;
     }
 
@@ -84,16 +100,18 @@ function splitIntoSections(content: string, title: string): Section[] {
 
     if (level > MAX_HEADING_LEVEL) {
       bodyLines.push(text);
+      orphanLevel = null;
       continue;
     }
 
-    flush();
+    flush(level);
     stack.length = level - 1;
     // The page's own h1 is already the chunk prefix; do not repeat it.
     stack[level - 1] = level === 1 && sameTitle(text, title) ? '' : text;
+    orphanLevel = stack[level - 1] ? level : null;
   }
 
-  flush();
+  flush(null);
   return sections;
 }
 

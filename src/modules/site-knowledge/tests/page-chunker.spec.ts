@@ -108,6 +108,34 @@ describe('chunkPage', () => {
     expect(chunks.map((c) => c.index)).toEqual(chunks.map((_, i) => i));
   });
 
+  it('keeps a heading without body as text when it has no children (landing-page slogans)', () => {
+    const content = [
+      '## Следующие заказы',
+      'Делайте заказы регулярно и копите баллы, отслеживая пополнения в личном кабинете.',
+      '## Главное не забывать о нас месяца на три: через 90 дней бонусы обнуляются!',
+      '## Вы можете оплачивать своими бонусами до 30% заказа!',
+      '## FAQ',
+      '### На что не действует бонусная система?',
+      'На одноразовые и регулярные тематические акции, на стоимость доставки и на товары со скидкой.',
+    ].join('\n');
+
+    const chunks = chunkPage({ title: 'Бонусы', content }, { minTail: 10 });
+    const all = chunks.map((c) => c.text).join('\n');
+
+    expect(all).toContain('через 90 дней бонусы обнуляются!');
+    expect(all).toContain('оплачивать своими бонусами до 30% заказа!');
+    // "FAQ" is a parent of the h3 and is not emitted as body text on its own line
+    expect(chunks.some((c) => c.text.split('\n').slice(1).join('\n').trim() === 'FAQ')).toBe(false);
+    expect(chunks.at(-1)?.heading).toBe('FAQ › На что не действует бонусная система?');
+  });
+
+  it('keeps a trailing heading without body', () => {
+    const content =
+      '## Раздел\nТекст раздела достаточно длинный, чтобы быть фрагментом.\n## Это не просто заказ, а счастье в каждой коробочке!';
+    const chunks = chunkPage({ title: 'О компании', content }, { minTail: 10 });
+    expect(chunks.map((c) => c.text).join('\n')).toContain('счастье в каждой коробочке!');
+  });
+
   it('drops a heading-only section but keeps it in the path of its children', () => {
     const content = [
       '## Условия доставки',
