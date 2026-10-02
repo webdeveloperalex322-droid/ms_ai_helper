@@ -36,7 +36,10 @@ export interface KnowledgeHit {
 export const SEMANTIC_WEIGHT = 0.7;
 export const KEYWORD_WEIGHT = 0.3;
 export const DEFAULT_TOP_K = 6;
+export const MAX_PASSAGES_PER_PAGE = 2;
 const CANDIDATE_LIMIT = 20;
+/** ts_rank normalization: divide by 1 + log(document length) so long chunks do not win by bulk. */
+const TS_RANK_NORMALIZATION = 1;
 
 /**
  * Hybrid search over the site knowledge chunks of one city: pgvector cosine
@@ -80,12 +83,26 @@ export class SiteKnowledgeSearchService {
       }
     }
 
-    const passages = [...merged.values()].map((p) => ({
-      ...p,
-      score: SEMANTIC_WEIGHT * p.semanticScore + KEYWORD_WEIGHT * p.keywordScore,
-    }));
+    const passages = [...merged.values()]
+      .map((p) => ({
+        ...p,
+        score: SEMANTIC_WEIGHT * p.semanticScore + KEYWORD_WEIGHT * p.keywordScore,
+      }))
+      .sort((a, b) => b.score - a.score);
 
-    return passages.sort((a, b) => b.score - a.score).slice(0, topK);
+    // A long legal document yields dozens of chunks that all mention
+    // "оплата"/"доставка"; without a per-page cap they crowd out the short
+    // delivery page that actually answers the question.
+    const perPage = new Map<string, number>();
+    const picked: KnowledgePassage[] = [];
+    for (const passage of passages) {
+      const used = perPage.get(passage.pageId) ?? 0;
+      if (used >= MAX_PASSAGES_PER_PAGE) continue;
+      perPage.set(passage.pageId, used + 1);
+      picked.push(passage);
+      if (picked.length >= topK) break;
+    }
+    return picked;
   }
 
   // --- data access (overridden in tests) ---------------------------------
@@ -137,7 +154,7 @@ export class SiteKnowledgeSearchService {
         p.title,
         c.heading,
         c.text,
-        ts_rank(to_tsvector('russian', c.text), to_tsquery('russian', ${tsQuery})) AS score
+        ts_rank(to_tsvector('russian', c.text), to_tsquery('russian', ${tsQuery}), ${TS_RANK_NORMALIZATION}) AS score
       FROM site_page_chunks c
       JOIN site_pages p ON p.id = c.page_id AND p.is_active = true
       WHERE c.rn = ${rn}::uuid
@@ -151,15 +168,51 @@ export class SiteKnowledgeSearchService {
   }
 }
 
-/** `как оплатить заказ?` → `как:* & оплатить:* & заказ:*` (prefix match per word). */
+/**
+ * `как оплатить заказ?` → `оплатить:* | заказ:*` (prefix match, ANY word).
+ *
+ * OR, not AND: a service question rarely repeats the page's wording verbatim
+ * ("какие акции сейчас" vs a page that just says "Акции"), and ts_rank still
+ * puts chunks matching more words first. Short function words are dropped so
+ * they do not drag in unrelated chunks.
+ */
 export function buildTsQuery(query: string): string {
   const words = query
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .split(/\s+/)
-    .filter((w) => w.length >= 2);
-  return words.map((w) => `${w}:*`).join(' & ');
+    .filter((w) => w.length >= 3 && !TS_STOP_WORDS.has(w));
+  return [...new Set(words)].map((w) => `${w}:*`).join(' | ');
 }
+
+const TS_STOP_WORDS = new Set([
+  'как',
+  'какие',
+  'какой',
+  'какая',
+  'что',
+  'где',
+  'когда',
+  'сколько',
+  'можно',
+  'нужно',
+  'есть',
+  'вас',
+  'вам',
+  'ваш',
+  'ваши',
+  'мне',
+  'это',
+  'для',
+  'или',
+  'при',
+  'сейчас',
+  'нас',
+  'все',
+  'уже',
+  'ещё',
+  'еще',
+]);
 
 function toHits(results: unknown): KnowledgeHit[] {
   const rows = (results as any).rows ?? results;

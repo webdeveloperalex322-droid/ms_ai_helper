@@ -73,6 +73,19 @@ describe('SiteKnowledgeSearchService.search', () => {
     expect(result[0].chunkId).toBe('s0');
   });
 
+  it('caps passages per page so one long document cannot fill the whole result', async () => {
+    const legal = Array.from({ length: 6 }, (_, i) =>
+      hit(`l${i}`, 0.9 - i / 100, { pageId: 'oferta' }),
+    );
+    const delivery = hit('d1', 0.5, { pageId: 'delivery' });
+    const service = new TestSearch([...legal, delivery], []);
+
+    const result = await service.search({ ...input, topK: 4 });
+
+    expect(result.map((p) => p.chunkId)).toEqual(['l0', 'l1', 'd1']);
+    expect(result.filter((p) => p.pageId === 'oferta')).toHaveLength(2);
+  });
+
   it('defaults topK to 6', async () => {
     const semantic = Array.from({ length: 10 }, (_, i) => hit(`s${i}`, 1 - i / 10));
     const service = new TestSearch(semantic, []);
@@ -99,9 +112,10 @@ describe('SiteKnowledgeSearchService.search', () => {
 });
 
 describe('buildTsQuery', () => {
-  it('builds a prefix AND query from words, dropping punctuation and one-letter words', () => {
-    expect(buildTsQuery('Как оплатить заказ?')).toBe('как:* & оплатить:* & заказ:*');
-    expect(buildTsQuery('в Тюмени, до 23:00!')).toBe('тюмени:* & до:* & 23:* & 00:*');
-    expect(buildTsQuery('а')).toBe('');
+  it('builds a prefix OR query from content words, dropping punctuation, stop words and duplicates', () => {
+    expect(buildTsQuery('Как оплатить заказ?')).toBe('оплатить:* | заказ:*');
+    expect(buildTsQuery('какие акции сейчас действуют')).toBe('акции:* | действуют:*');
+    expect(buildTsQuery('в Тюмени, до 23:00! Тюмени')).toBe('тюмени:*');
+    expect(buildTsQuery('а как что')).toBe('');
   });
 });

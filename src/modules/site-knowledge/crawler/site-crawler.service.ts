@@ -129,8 +129,7 @@ export class SiteCrawlerService {
     const extracted = this.extractor.extract(fetched.html);
     // Some pages ship without <title> (the bonus page does): fall back to the
     // first heading of the content before resorting to the browser title/path.
-    const title =
-      extracted.title || firstHeading(extracted.content) || fetched.title || path;
+    const title = extracted.title || firstHeading(extracted.content) || fetched.title || path;
 
     if (extracted.content.length < MIN_CONTENT_CHARS) {
       return {

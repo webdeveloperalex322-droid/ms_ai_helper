@@ -224,8 +224,9 @@ function normalizeInline(text: string): string {
 }
 
 function cleanTitle(raw: string): string {
+  // "Акции | Суши Мастер, Тюмень" / "Акция X || Акции и скидки …" → keep the page's own part.
   const normalized = normalizeInline(raw);
-  const cut = normalized.split(' | ')[0]?.trim();
+  const cut = normalized.split(/\s\|{1,2}\s/)[0]?.trim();
   return cut || normalized;
 }
 
