@@ -36,7 +36,7 @@ export interface KnowledgeHit {
 export const SEMANTIC_WEIGHT = 0.7;
 export const KEYWORD_WEIGHT = 0.3;
 export const DEFAULT_TOP_K = 10;
-export const MAX_PASSAGES_PER_PAGE = 4;
+export const MAX_PASSAGES_PER_PAGE = 6;
 const CANDIDATE_LIMIT = 20;
 /** ts_rank normalization: divide by 1 + log(document length) so long chunks do not win by bulk. */
 const TS_RANK_NORMALIZATION = 1;
