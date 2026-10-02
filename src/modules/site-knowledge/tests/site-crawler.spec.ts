@@ -79,6 +79,22 @@ describe('SiteCrawlerService.crawl', () => {
     expect(Date.parse(snapshot.crawled_at)).not.toBeNaN();
   });
 
+  it('falls back to the first heading when the page has no <title>', async () => {
+    const fetcher = fakeFetcher({
+      '/bonus': `<html><body><main><h1>Программа лояльности</h1><p>${longText}</p></main></body></html>`,
+    });
+
+    const snapshot = await crawler(fetcher).crawl({
+      siteUrl: SITE,
+      rn: RN,
+      br: BR,
+      pages: ['/bonus'],
+      promotionDetails: false,
+    });
+
+    expect(snapshot.pages[0].title).toBe('Программа лояльности');
+  });
+
   it('marks a page whose fetch throws as failed and keeps crawling', async () => {
     const fetcher = fakeFetcher({
       '/about': new Error('net::ERR_TIMED_OUT'),

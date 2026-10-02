@@ -8,8 +8,12 @@ const USER_AGENT =
 /** Minimum body text (header/footer excluded) that counts as "content arrived". */
 const CONTENT_READY_CHARS = 300;
 const READY_POLL_MS = 1000;
-const MIN_READY_WAIT_MS = 5000;
+const MIN_READY_WAIT_MS = 15_000;
+const SETTLE_AFTER_NAVIGATION_MS = 2000;
+const CAPTURE_ATTEMPTS = 4;
 const DEFAULT_PROTOCOL_TIMEOUT_MS = 600_000;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export class BrowserNotFoundError extends Error {
   constructor(tried: string[]) {
@@ -109,43 +113,62 @@ export class HeadlessBrowserFetcher implements PageFetcher {
       await page.setUserAgent(USER_AGENT);
       await page.setViewport({ width: 1366, height: 900 });
 
+      // `domcontentloaded`, not `networkidle*`: the site keeps long-lived
+      // connections (chat widget, analytics, SignalR) so the network never goes
+      // idle and a networkidle wait would eat the whole budget before the
+      // client-side content has been polled for even once.
       try {
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: options.timeoutMs });
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: options.timeoutMs });
       } catch (err) {
         if (!(err instanceof TimeoutError)) throw err;
       }
 
       await this.waitForContent(page, deadline);
 
-      const [html, title] = await Promise.all([page.content(), page.title()]);
-      return { html, title, finalUrl: page.url() };
+      return this.capture(page);
     } finally {
       await page.close().catch(() => undefined);
     }
   }
 
+  /** Polls until the page body carries text or the deadline passes; survives mid-poll navigations. */
   private async waitForContent(page: Page, deadline: number): Promise<void> {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const remaining = Math.max(MIN_READY_WAIT_MS, deadline - Date.now());
+    for (;;) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) return;
       try {
         await page.waitForFunction(
           contentReady,
-          { timeout: remaining, polling: READY_POLL_MS },
+          { timeout: Math.max(MIN_READY_WAIT_MS, remaining), polling: READY_POLL_MS },
           CONTENT_READY_CHARS,
         );
         return;
       } catch (err) {
         if (err instanceof TimeoutError) return;
-        // A navigation in the middle of polling: let the new document settle and poll again.
         if (isContextDestroyed(err)) {
-          await page
-            .waitForNetworkIdle({ idleTime: 1000, timeout: remaining })
-            .catch(() => undefined);
+          // A navigation in the middle of polling: let the new document settle and poll again.
+          await sleep(SETTLE_AFTER_NAVIGATION_MS);
           continue;
         }
         throw err;
       }
     }
+  }
+
+  /** Serializes the DOM; a navigation can still land between polling and capture. */
+  private async capture(page: Page): Promise<FetchedPage> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < CAPTURE_ATTEMPTS; attempt++) {
+      try {
+        const [html, title] = await Promise.all([page.content(), page.title()]);
+        return { html, title, finalUrl: page.url() };
+      } catch (err) {
+        if (!isContextDestroyed(err)) throw err;
+        lastError = err;
+        await sleep(SETTLE_AFTER_NAVIGATION_MS);
+      }
+    }
+    throw lastError;
   }
 
   async close(): Promise<void> {

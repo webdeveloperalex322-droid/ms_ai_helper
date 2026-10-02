@@ -127,7 +127,10 @@ export class SiteCrawlerService {
     }
 
     const extracted = this.extractor.extract(fetched.html);
-    const title = extracted.title || fetched.title || path;
+    // Some pages ship without <title> (the bonus page does): fall back to the
+    // first heading of the content before resorting to the browser title/path.
+    const title =
+      extracted.title || firstHeading(extracted.content) || fetched.title || path;
 
     if (extracted.content.length < MIN_CONTENT_CHARS) {
       return {
@@ -153,6 +156,11 @@ function normalizePath(path: string): string {
   const withoutQuery = path.split(/[?#]/)[0] ?? '';
   const trimmed = withoutQuery.replace(/^\/+/, '').replace(/\/+$/, '');
   return trimmed === '' ? '/' : `/${trimmed}`;
+}
+
+function firstHeading(content: string): string | null {
+  const match = /^#{1,3}\s+(.+)$/m.exec(content);
+  return match ? match[1].trim() : null;
 }
 
 function describe(err: unknown): string {
