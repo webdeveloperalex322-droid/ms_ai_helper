@@ -1,0 +1,186 @@
+import { existsSync } from 'fs';
+import puppeteer, { type Browser, type Page, TimeoutError } from 'puppeteer-core';
+import type { FetchOptions, FetchedPage, PageFetcher } from './page-fetcher.interface';
+
+const USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+
+/** Minimum body text (header/footer excluded) that counts as "content arrived". */
+const CONTENT_READY_CHARS = 300;
+const READY_POLL_MS = 1000;
+const MIN_READY_WAIT_MS = 5000;
+const DEFAULT_PROTOCOL_TIMEOUT_MS = 600_000;
+
+export class BrowserNotFoundError extends Error {
+  constructor(tried: string[]) {
+    super(
+      'No Chromium-based browser found. Pass --browser <path> or set BROWSER_EXECUTABLE_PATH.' +
+        (tried.length ? ` Tried: ${tried.join(', ')}` : ''),
+    );
+    this.name = 'BrowserNotFoundError';
+  }
+}
+
+const WINDOWS_CANDIDATES = [
+  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+  'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+];
+const LINUX_CANDIDATES = [
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+  '/usr/bin/microsoft-edge',
+  '/snap/bin/chromium',
+];
+const MAC_CANDIDATES = [
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+  '/Applications/Chromium.app/Contents/MacOS/Chromium',
+];
+
+/**
+ * Picks the browser executable: explicit argument → BROWSER_EXECUTABLE_PATH →
+ * well-known install locations for the current platform.
+ */
+export function resolveBrowserExecutable(
+  explicit?: string,
+  env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+  exists: (p: string) => boolean = existsSync,
+): string {
+  const tried: string[] = [];
+  const candidates = [explicit, env.BROWSER_EXECUTABLE_PATH].filter(
+    (p): p is string => typeof p === 'string' && p.trim() !== '',
+  );
+  candidates.push(
+    ...(platform === 'win32'
+      ? WINDOWS_CANDIDATES
+      : platform === 'darwin'
+        ? MAC_CANDIDATES
+        : LINUX_CANDIDATES),
+  );
+
+  for (const candidate of candidates) {
+    tried.push(candidate);
+    if (exists(candidate)) return candidate;
+  }
+  throw new BrowserNotFoundError(tried);
+}
+
+/**
+ * Renders pages in a headless Chromium via puppeteer-core. The city sites are
+ * client-rendered and slow: navigation often hits the timeout while the DOM is
+ * already populated, so a navigation timeout is not an error here — the page
+ * is still captured and judged by its content length downstream.
+ */
+export class HeadlessBrowserFetcher implements PageFetcher {
+  private browser: Browser | null = null;
+
+  /**
+   * @param protocolTimeoutMs upper bound for a single CDP call (page.content(),
+   * waitForFunction…). The default 180 s of puppeteer is too tight for this
+   * site, where a frame can stay busy for minutes.
+   */
+  constructor(
+    private readonly executablePath: string,
+    private readonly protocolTimeoutMs = DEFAULT_PROTOCOL_TIMEOUT_MS,
+  ) {}
+
+  async fetch(url: string, options: FetchOptions): Promise<FetchedPage> {
+    // The site sometimes re-navigates right after load (city redirect, router
+    // replace); the evaluation context dies and puppeteer throws. One retry.
+    try {
+      return await this.fetchOnce(url, options);
+    } catch (err) {
+      if (!isContextDestroyed(err)) throw err;
+      return this.fetchOnce(url, options);
+    }
+  }
+
+  private async fetchOnce(url: string, options: FetchOptions): Promise<FetchedPage> {
+    const browser = await this.ensureBrowser();
+    const page = await browser.newPage();
+    const deadline = Date.now() + options.timeoutMs;
+
+    try {
+      await page.setUserAgent(USER_AGENT);
+      await page.setViewport({ width: 1366, height: 900 });
+
+      try {
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: options.timeoutMs });
+      } catch (err) {
+        if (!(err instanceof TimeoutError)) throw err;
+      }
+
+      await this.waitForContent(page, deadline);
+
+      const [html, title] = await Promise.all([page.content(), page.title()]);
+      return { html, title, finalUrl: page.url() };
+    } finally {
+      await page.close().catch(() => undefined);
+    }
+  }
+
+  private async waitForContent(page: Page, deadline: number): Promise<void> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const remaining = Math.max(MIN_READY_WAIT_MS, deadline - Date.now());
+      try {
+        await page.waitForFunction(
+          contentReady,
+          { timeout: remaining, polling: READY_POLL_MS },
+          CONTENT_READY_CHARS,
+        );
+        return;
+      } catch (err) {
+        if (err instanceof TimeoutError) return;
+        // A navigation in the middle of polling: let the new document settle and poll again.
+        if (isContextDestroyed(err)) {
+          await page
+            .waitForNetworkIdle({ idleTime: 1000, timeout: remaining })
+            .catch(() => undefined);
+          continue;
+        }
+        throw err;
+      }
+    }
+  }
+
+  async close(): Promise<void> {
+    if (this.browser) {
+      await this.browser.close().catch(() => undefined);
+      this.browser = null;
+    }
+  }
+
+  private async ensureBrowser(): Promise<Browser> {
+    if (!this.browser) {
+      this.browser = await puppeteer.launch({
+        executablePath: this.executablePath,
+        headless: true,
+        protocolTimeout: this.protocolTimeoutMs,
+        args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
+      });
+    }
+    return this.browser;
+  }
+}
+
+function isContextDestroyed(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /execution context was destroyed|Cannot find context|Target closed|frame was detached/i.test(
+    message,
+  );
+}
+
+/** Runs inside the page: true once <main> (minus furniture) carries real text. */
+function contentReady(minChars: number): boolean {
+  const main = document.querySelector('main') ?? document.body;
+  if (!main) return false;
+  const clone = main.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll('header, footer, nav, script, style').forEach((el) => el.remove());
+  const text = (clone.textContent ?? '').replace(/\s+/g, ' ').trim();
+  return text.length >= minChars;
+}
