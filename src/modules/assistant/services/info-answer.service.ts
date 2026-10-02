@@ -37,7 +37,7 @@ export interface InfoAnswerResult {
   sources: string[];
 }
 
-export const INFO_TOP_K = 8;
+export const INFO_TOP_K = 10;
 
 /**
  * Answers a service question (delivery, payment, bonuses, promotions,

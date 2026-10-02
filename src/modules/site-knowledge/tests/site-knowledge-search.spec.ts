@@ -80,16 +80,16 @@ describe('SiteKnowledgeSearchService.search', () => {
     const delivery = hit('d1', 0.5, { pageId: 'delivery' });
     const service = new TestSearch([...legal, delivery], []);
 
-    const result = await service.search({ ...input, topK: 4 });
+    const result = await service.search({ ...input, topK: 5 });
 
-    expect(result.map((p) => p.chunkId)).toEqual(['l0', 'l1', 'l2', 'd1']);
-    expect(result.filter((p) => p.pageId === 'oferta')).toHaveLength(3);
+    expect(result.map((p) => p.chunkId)).toEqual(['l0', 'l1', 'l2', 'l3', 'd1']);
+    expect(result.filter((p) => p.pageId === 'oferta')).toHaveLength(4);
   });
 
-  it('defaults topK to 8', async () => {
-    const semantic = Array.from({ length: 12 }, (_, i) => hit(`s${i}`, 1 - i / 12));
+  it('defaults topK to 10', async () => {
+    const semantic = Array.from({ length: 14 }, (_, i) => hit(`s${i}`, 1 - i / 14));
     const service = new TestSearch(semantic, []);
-    expect(await service.search(input)).toHaveLength(8);
+    expect(await service.search(input)).toHaveLength(10);
   });
 
   it('falls back to the other branch when one throws', async () => {
