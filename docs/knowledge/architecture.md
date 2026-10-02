@@ -16,6 +16,8 @@ DTO: [product-answer.request.dto.ts](../../src/modules/assistant/dto/product-ans
    - orchestrator `assistant-orchestrator.service.ts:66-118`
    - parser [intent-slot-parser.service.ts](../../src/modules/assistant/services/intent-slot-parser.service.ts)
 
+   - `intent === 'info_question'` (delivery, payment, bonuses, promotions, restaurants, company, legal) → **service branch**, no shortlist: `InfoAnswerService.answer()` ([info-answer.service.ts](../../src/modules/assistant/services/info-answer.service.ts)) runs `SiteKnowledgeSearchService` (pgvector + tsvector over `site_page_chunks` of the city, top-6) → `LLMProvider.answerFromKnowledge()` raced against `LLM_TIMEOUT_MS` → reply with `cards: []` and `actions: [{ type: 'open_url', url, title }]` for the source page. `empty` (no knowledge for the city) → `forUnsupportedIntent()` / preset fallback; `timeout` → `forInfoTimeout(best)` (excerpt of the best passage); `not_found` → model text or `forInfoNotFound()`. Logged as `validation_status = info_answer | info_not_found | info_empty | info_timeout`, sources in `ai_logs.llm_response`. Knowledge is loaded by `pnpm site:crawl` + `pnpm site:import` (see [modules.md](modules.md) → `site-knowledge/`).
+
 2. **Shortlist** — `ShortlistBuilderService.build()` → `HybridRetrieverService.retrieve()`:
    embed query → **parallel** vector search (pgvector `<=>` cosine) + keyword search (each `.catch(() => [])`) → merge/dedupe by `product_id` → hydrate from catalog → score → sort → top ~30.
    Empty candidate map → fallback to all city products (`catalogService.findByCity`, score 0.5).
@@ -50,4 +52,4 @@ DTO: [product-answer.request.dto.ts](../../src/modules/assistant/dto/product-ans
 Embeddings mirror this: `EmbeddingProvider` swaps mock/openai via `EMBEDDING_PROVIDER`.
 [embedding.provider.interface.ts](../../src/modules/rag/providers/embedding.provider.interface.ts)
 
-See [decisions.md](decisions.md) for *why* it's split this way.
+See [decisions.md](decisions.md) for _why_ it's split this way.

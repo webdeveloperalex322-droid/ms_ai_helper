@@ -21,6 +21,14 @@ pnpm rag:index-all                    # build chunks + embeddings for the WHOLE 
                                       # (--rn/--br/--target slice, --force, --dry-run, --limit)
                                       # required after an import: without it vector search is empty
 pnpm rag:index <productId>            # same for a single product
+pnpm site:crawl --url <site> --rn <rn> --br <br> --out data/site-pages/<city>.json
+                                      # render the city site's info pages (delivery, bonuses,
+                                      # promotions, restaurants, legal) in headless Edge/Chrome
+                                      # -> JSON snapshot; needs a browser (--browser / BROWSER_EXECUTABLE_PATH)
+pnpm site:import data/site-pages/<city>.json [--force] [--dry-run]
+                                      # load snapshot into site_pages + chunks + embeddings;
+                                      # without it service questions (delivery/payment/bonuses)
+                                      # fall back to the old "products only" refusal
 pnpm start:dev                        # watch-mode dev server -> http://localhost:3000/v1
                                       # Swagger: http://localhost:3000/v1/docs
 
@@ -66,8 +74,13 @@ Every failure branch returns a `FallbackService` response, not an HTTP error —
 
 Embeddings follow the same mock/openai swap via `EMBEDDING_PROVIDER` in the RAG module.
 
+### Service questions (`info_question`)
+
+Questions about delivery, payment, bonuses, promotions, restaurant addresses/hours, the company or legal terms are routed **before** the shortlist to `InfoAnswerService` (`modules/assistant/services/info-answer.service.ts`): hybrid search over `site_page_chunks` of the city (`modules/site-knowledge/`) → `LLMProvider.answerFromKnowledge()` grounded on the passages → reply with an `open_url` action to the source page, `cards: []`. Empty knowledge base → the old unsupported-intent fallback; LLM timeout → excerpt of the best passage. Knowledge comes from `pnpm site:crawl` + `pnpm site:import` (snapshot in `data/site-pages/`), see spec `011-site-info-knowledge`.
+
 ### Other modules
 
+- `site-knowledge/` — crawler (puppeteer-core + cheerio), snapshot import, chunking, indexing and hybrid search over site page knowledge. Tables `site_pages`, `site_page_chunks`, `site_page_embeddings`.
 - `catalog-import/` — imports cities & products from external venus APIs (`CATALOG_API_MODE` = `mock` | `real`, mock vs http client behind `catalog-api.client.interface.ts`); `ImportJobService` tracks jobs.
 - `catalog/` — product lookup/filtering by rn/br/target.
 - `rag/` — searchable-text builder, embeddings, vector + keyword + hybrid search.

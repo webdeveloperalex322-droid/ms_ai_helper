@@ -4,14 +4,14 @@ Backend prototype of an AI assistant that answers questions about sushi delivery
 
 ## Stack
 
-| Layer | Technology |
-|---|---|
-| Runtime | Node.js 20+, TypeScript |
-| Framework | NestJS 10 + Fastify |
-| Database | PostgreSQL 15 + pgvector |
-| ORM | Drizzle ORM |
-| Test | Vitest |
-| Package manager | pnpm |
+| Layer           | Technology               |
+| --------------- | ------------------------ |
+| Runtime         | Node.js 20+, TypeScript  |
+| Framework       | NestJS 10 + Fastify      |
+| Database        | PostgreSQL 15 + pgvector |
+| ORM             | Drizzle ORM              |
+| Test            | Vitest                   |
+| Package manager | pnpm                     |
 
 ## Quick Start
 
@@ -152,15 +152,15 @@ curl -X POST http://localhost:3000/v1/internal/import/products \
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|---|---|---|
-| `DATABASE_URL` | — | PostgreSQL connection string |
-| `PORT` | `3000` | HTTP port |
-| `LLM_PROVIDER` | `mock` | `mock` or `openai` |
-| `EMBEDDING_PROVIDER` | `mock` | `mock` or `openai` |
-| `CATALOG_API_BASE_URL` | — | Products API base URL |
-| `CITIES_API_BASE_URL` | — | Cities API base URL |
-| `OPENAI_API_KEY` | — | Required if using OpenAI providers |
+| Variable               | Default | Description                        |
+| ---------------------- | ------- | ---------------------------------- |
+| `DATABASE_URL`         | —       | PostgreSQL connection string       |
+| `PORT`                 | `3000`  | HTTP port                          |
+| `LLM_PROVIDER`         | `mock`  | `mock` or `openai`                 |
+| `EMBEDDING_PROVIDER`   | `mock`  | `mock` or `openai`                 |
+| `CATALOG_API_BASE_URL` | —       | Products API base URL              |
+| `CITIES_API_BASE_URL`  | —       | Cities API base URL                |
+| `OPENAI_API_KEY`       | —       | Required if using OpenAI providers |
 
 See `.env.example` for full list.
 
@@ -209,6 +209,19 @@ src/
 ```
 
 ---
+
+## Site knowledge base (service questions)
+
+Questions about delivery, payment, bonuses, promotions, restaurant addresses and the company are answered from the informational pages of the city site (`<city>.sushi-master.ru`). The pages are client-rendered, so they are collected with a headless browser into a snapshot that lives in the repo and is then imported into the database:
+
+```bash
+# on a workstation with Edge/Chrome installed
+pnpm site:crawl --url https://tyumen.sushi-master.ru --rn <rn> --br <br> --out data/site-pages/tyumen.json
+# anywhere the database is reachable (no browser needed)
+pnpm site:import data/site-pages/tyumen.json
+```
+
+Without an imported snapshot such questions get the old "I only help with products" reply. Details: [specs/011-site-info-knowledge/quickstart.md](specs/011-site-info-knowledge/quickstart.md).
 
 ## LLM / Embedding Providers
 
