@@ -10,6 +10,15 @@ NestJS modular monolith. `AppModule` wires global `ConfigModule`, `DatabaseModul
 Request body fields: `rn`, `br`, `target`, `user_message`, `suggestion_id` (+ optional `session_id`, `screen_context`, `channel`).
 DTO: [product-answer.request.dto.ts](../../src/modules/assistant/dto/product-answer.request.dto.ts) — **trust the DTO, not the README** (README shows a stale `city_id`).
 
+## Suggestion set (a separate, shorter pipeline)
+
+`GET /v1/assistant/suggestions?rn&br&target&screen_context&session_id` → `SuggestionsController` → `SuggestionService.getActiveSuggestions()`
+[suggestion.service.ts](../../src/modules/suggestions/services/suggestion.service.ts)
+
+One query for the network's suggestions, then: hard filters (enabled, target, screen context, active window, `allowed_br`) → eligibility (city products for product suggestions, indexed knowledge base for `info_question` ones) → 30-day shown/clicked statistics → deterministic weighted draw of 6, seeded from `session_id`. Elements carry `kind` (`product` | `service`), so the client knows which will answer with cards and which with text. Every failure path degrades (empty statistics, tolerant product check) and the endpoint answers `200` with a possibly empty list. See ADR-013, ADR-014, ADR-015.
+
+Choosing a service suggestion enters the pipeline below with `intent: info_question`, i.e. step 2b.
+
 ## The 7 steps (`handle()`)
 
 1. **Intent** — resolve from `suggestion_id` (preset loaded from DB via `loadSuggestion()`, gated on `enabled` + `target` + `allowed_br` + active period) **OR** parse `user_message` via `IntentSlotParserService`. No message and no suggestion → `forUnsupportedIntent()` fallback. `intent === 'unsupported'` → same fallback.

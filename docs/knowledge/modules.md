@@ -42,9 +42,15 @@ Imports cities, products, and categories from external venus APIs. `CATALOG_API_
 
 ### `suggestions/`
 
-Preset prompt suggestions ("suggestion presets") shown on screen; loaded/gated by target/br/period. Fires suggestion events.
+Preset prompt suggestions ("suggestion presets") shown on screen. `GET /v1/assistant/suggestions` returns a **set of 6**, not the catalogue of 49: hard filters (enabled, target, screen context, active window, `allowed_br`, eligibility) → weights → deterministic weighted draw seeded from `session_id` (ADR-013). Product suggestions need matching city products, service suggestions (`intent: info_question`) need an indexed city knowledge base (ADR-014). Day part lifts matching scenarios (ADR-015). Fires suggestion events.
 
 - Entry: [suggestions.module.ts](../../src/modules/suggestions/suggestions.module.ts)
+- [suggestion.service.ts](../../src/modules/suggestions/services/suggestion.service.ts) — orchestrates filters → eligibility → stats → selection
+- [suggestion-selector.service.ts](../../src/modules/suggestions/services/suggestion-selector.service.ts) — weights, type quota, context floor, weighted draw (pure, no DB)
+- [suggestion-eligibility.service.ts](../../src/modules/suggestions/services/suggestion-eligibility.service.ts) — batched product checks (cache 60 s) + knowledge availability via `KNOWLEDGE_AVAILABILITY_PORT` (cache 5 min)
+- [suggestion-stats.service.ts](../../src/modules/suggestions/services/suggestion-stats.service.ts) — shown/clicked aggregate per `rn|target` over 30 days (cache 60 s); empty ⇒ order by `sort_order`
+- [day-part.service.ts](../../src/modules/suggestions/services/day-part.service.ts) — current day part in `SUGGESTIONS_TIMEZONE`, scenario → day part
+- [suggestion-context.ts](../../src/modules/suggestions/services/suggestion-context.ts) — screen contexts (`catalog`, `cart`, `checkout`, `empty`), suggestion kind, cart add-ons
 
 ### `admin-config/`
 

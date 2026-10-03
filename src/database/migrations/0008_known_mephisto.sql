@@ -1,0 +1,1 @@
+ALTER TABLE "assistant_suggestions" ADD COLUMN "screen_contexts" jsonb;

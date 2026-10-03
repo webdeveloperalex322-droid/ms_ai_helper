@@ -50,6 +50,7 @@ export class ShortlistBuilderService {
       preferredIngredients: slots.preferred_ingredients ?? undefined,
       excludedIngredients: slots.excluded_ingredients ?? undefined,
       spicy: slots.spicy ?? undefined,
+      caloriesMax: slots.calories_max ?? undefined,
       tags: undefined,
       isAvailable: true,
     };
@@ -65,8 +66,22 @@ export class ShortlistBuilderService {
       shortlistSize: 30,
     });
 
+    // "Looks like X" presets must not return X itself. Telling the model to
+    // skip it is not enough — the exemplar is the closest match by every score
+    // the retriever has, so it gets dropped here instead (spec 012, FR-005).
+    const excludedNames = (slots.excluded_product_names ?? [])
+      .map((name) => name.trim().toLowerCase())
+      .filter(Boolean);
+
+    const kept = excludedNames.length
+      ? candidates.filter((c) => {
+          const name = c.product.name.toLowerCase();
+          return !excludedNames.some((excluded) => name.includes(excluded));
+        })
+      : candidates;
+
     return {
-      candidates: candidates.map((c) => ({
+      candidates: kept.map((c) => ({
         product_id: c.product.id,
         name: c.product.name,
         price: parseFloat(String(c.product.cityProduct.price)) || 0,

@@ -4,12 +4,14 @@ import {
   IsArray,
   IsBoolean,
   IsDate,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
   IsUUID,
   ValidateNested,
 } from 'class-validator';
+import { SCREEN_CONTEXTS } from '../../suggestions/services/suggestion-context';
 
 export class SuggestionSlotsDto {
   @ApiProperty({ required: false })
@@ -57,6 +59,14 @@ export class SuggestionSlotsDto {
   @IsOptional()
   @IsString()
   scenario?: string;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Upper calorie bound, in the unit the catalogue provider reports',
+  })
+  @IsOptional()
+  calories_max?: number | null;
 }
 
 export class SuggestionPayloadDto {
@@ -136,10 +146,27 @@ export class CreateSuggestionDto {
   @IsInt()
   sortOrder?: number;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({
+    required: false,
+    deprecated: true,
+    description: 'Single screen context. Kept as the fallback for screenContexts',
+  })
   @IsOptional()
   @IsString()
   screenContext?: string;
+
+  @ApiProperty({
+    required: false,
+    type: [String],
+    enum: SCREEN_CONTEXTS,
+    isArray: true,
+    description:
+      'Screens the suggestion appears on. A non-empty array wins over screenContext; an empty array clears the restriction',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsIn(SCREEN_CONTEXTS as unknown as string[], { each: true })
+  screenContexts?: string[];
 
   @ApiProperty({ required: false })
   @IsOptional()
