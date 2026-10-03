@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { DATABASE_TOKEN, DrizzleDB } from '../../../database/database.module';
+import { sitePageChunks } from '../../../database/schema';
 import { EmbeddingService } from '../../rag/services/embedding.service';
 
 export interface KnowledgeSearchInput {
@@ -103,6 +104,30 @@ export class SiteKnowledgeSearchService {
       if (picked.length >= topK) break;
     }
     return picked;
+  }
+
+  /**
+   * Whether the city has anything to answer from (spec 012, FR-016).
+   *
+   * Service suggestions are offered only where at least one chunk is indexed:
+   * a collected-but-unindexed page leaves the vector search empty, so the
+   * suggestion could only ever answer with a refusal. Covered by
+   * `idx_site_page_chunks_rn_br_status`.
+   */
+  async hasIndexedKnowledge(rn: string, br: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ id: sitePageChunks.id })
+      .from(sitePageChunks)
+      .where(
+        and(
+          eq(sitePageChunks.rn, rn),
+          eq(sitePageChunks.br, br),
+          eq(sitePageChunks.embeddingStatus, 'ready'),
+        ),
+      )
+      .limit(1);
+
+    return rows.length > 0;
   }
 
   // --- data access (overridden in tests) ---------------------------------

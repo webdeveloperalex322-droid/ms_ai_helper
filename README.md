@@ -107,18 +107,30 @@ Response:
 ### Get preset suggestions
 
 ```bash
-curl "http://localhost:3000/v1/assistant/suggestions?city_id=test_city&target=WEB"
+curl "http://localhost:3000/v1/assistant/suggestions?rn=$RN&br=$BR&target=WEB&screen_context=catalog&session_id=visit-9f3c"
 ```
 
-### Trigger suggestion
+Returns a **set** of up to `MAX_SUGGESTIONS_ON_SCREEN` (6 by default), not the whole catalogue:
+
+- `screen_context` — `catalog` (default), `cart`, `checkout`, `empty`. Add-ons dominate the cart, service questions the checkout and an empty screen; an unknown value is treated as `catalog`.
+- `session_id` — optional. The same value returns the same set during the visit, different values rotate it. Without it the set is still valid, only not stable.
+- each element carries `kind`: `product` (answers with cards) or `service` (answers with text from the city knowledge base).
+
+Service suggestions are hidden in cities whose information pages have not been imported (`pnpm site:import`).
+
+### Trigger a suggestion
+
+There is no separate trigger endpoint — post the suggestion's `id` to the answer endpoint:
 
 ```bash
-curl -X POST http://localhost:3000/v1/assistant/suggestions/suggest_salmon_rolls/trigger \
+curl -X POST http://localhost:3000/v1/assistant/product-answer \
   -H "Content-Type: application/json" \
   -d '{
-    "city_id": "test_city",
-    "session_id": "session-abc",
-    "target": "WEB"
+    "rn": "'$RN'",
+    "br": "'$BR'",
+    "target": "WEB",
+    "session_id": "visit-9f3c",
+    "suggestion_id": "<id from the list above>"
   }'
 ```
 

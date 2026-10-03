@@ -16,6 +16,11 @@ export interface CatalogFilters {
   preferredIngredients?: string[];
   excludedIngredients?: string[];
   spicy?: boolean;
+  /**
+   * Upper calorie bound, in the unit the catalogue provider reports. Products
+   * without a calorie value are kept: a missing figure is not a heavy dish.
+   */
+  caloriesMax?: number;
   tags?: string[];
   attributeNames?: string[];
   isAvailable?: boolean;
@@ -23,6 +28,31 @@ export interface CatalogFilters {
 
 export interface ProductWithCityData extends Product {
   cityProduct: CityProduct;
+}
+
+/**
+ * Whether any of `needles` occurs in the product's ingredients (and, for an
+ * exclusion, its allergens). Comparison is case-insensitive and by substring,
+ * so a stem like `креветк` covers both "Креветка" and "Креветки в панировке".
+ */
+function matchesAny(
+  product: { ingredients: unknown; allergens: unknown },
+  needles: string[],
+  includeAllergens: boolean,
+): boolean {
+  const haystack = [
+    ...((product.ingredients as string[] | null) ?? []),
+    ...(includeAllergens ? ((product.allergens as string[] | null) ?? []) : []),
+  ]
+    .filter((value): value is string => typeof value === 'string')
+    .map((value) => value.toLowerCase());
+
+  if (!haystack.length) return false;
+
+  return needles.some((needle) => {
+    const value = needle.trim().toLowerCase();
+    return value.length > 0 && haystack.some((entry) => entry.includes(value));
+  });
 }
 
 @Injectable()
@@ -50,6 +80,12 @@ export class CatalogService {
 
     if (filters.budgetMax != null) {
       conditions.push(lte(cityProducts.price, String(filters.budgetMax)));
+    }
+
+    if (filters.caloriesMax != null) {
+      conditions.push(
+        or(sql`${products.calories} is null`, lte(products.calories, String(filters.caloriesMax)))!,
+      );
     }
 
     // A product belongs to the requested category if it carries one of the resolved ids OR
@@ -82,30 +118,18 @@ export class CatalogService {
 
     let results = rows.map((r) => ({ ...r.products, cityProduct: r.city_products }));
 
-    // In-memory filters for JSONB array fields
+    // In-memory filters for JSONB array fields.
+    //
+    // Matching is by SUBSTRING, not equality: the live catalog writes free text
+    // there ("Креветки в панировке", "краб-микс соус", "икра масаго"), so an
+    // exact compare let a shrimp roll through a "no fish" filter and found
+    // nothing for a "crab" preference (spec 012, checked on Tyumen 2026-10-02).
     if (filters.excludedIngredients?.length) {
-      results = results.filter(
-        (p) =>
-          !filters.excludedIngredients!.some(
-            (ing) =>
-              (p.ingredients as string[] | null)
-                ?.map((i) => i.toLowerCase())
-                .includes(ing.toLowerCase()) ||
-              (p.allergens as string[] | null)
-                ?.map((a) => a.toLowerCase())
-                .includes(ing.toLowerCase()),
-          ),
-      );
+      results = results.filter((p) => !matchesAny(p, filters.excludedIngredients!, true));
     }
 
     if (filters.preferredIngredients?.length) {
-      results = results.filter((p) =>
-        filters.preferredIngredients!.some((ing) =>
-          (p.ingredients as string[] | null)
-            ?.map((i) => i.toLowerCase())
-            .includes(ing.toLowerCase()),
-        ),
-      );
+      results = results.filter((p) => matchesAny(p, filters.preferredIngredients!, false));
     }
 
     if (filters.spicy === false) {

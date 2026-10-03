@@ -1,16 +1,27 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
 import { DATABASE_TOKEN, DrizzleDB } from '../../../database/database.module';
 import { assistantSuggestions } from '../../../database/schema';
-import { CatalogService } from '../../catalog/services/catalog.service';
-import { CategoryResolverService } from '../../catalog/services/category-resolver.service';
 import { eq, and } from 'drizzle-orm';
+import {
+  matchesContext,
+  normalizeScreenContext,
+  resolveKind,
+  type ScreenContext,
+  type SuggestionKind,
+} from './suggestion-context';
+import { SuggestionEligibilityService } from './suggestion-eligibility.service';
+import { SuggestionSelectorService, type SelectionCandidate } from './suggestion-selector.service';
+import { DayPartService } from './day-part.service';
+import { SuggestionStatsService } from './suggestion-stats.service';
 
 export interface SuggestionListItem {
   id: string;
   code: string;
   title: string;
   sort_order: number;
+  kind: SuggestionKind;
   payload_preview: {
     intent: string;
     category?: string;
@@ -18,24 +29,39 @@ export interface SuggestionListItem {
   };
 }
 
+export interface SuggestionQueryOptions {
+  /** Unit of rotation: the same session sees the same set (spec 012, FR-012). */
+  sessionId?: string;
+}
+
+/**
+ * Serves the short set of preset suggestions for a city screen (spec 012).
+ *
+ * The whole catalogue is never returned: hard filters narrow it to what the
+ * city can actually answer, then `SuggestionSelectorService` draws the set.
+ */
 @Injectable()
 export class SuggestionService {
   constructor(
     @Inject(DATABASE_TOKEN) private readonly db: DrizzleDB,
-    private readonly catalogService: CatalogService,
     private readonly config: ConfigService,
-    private readonly categoryResolver: CategoryResolverService,
+    private readonly eligibility: SuggestionEligibilityService,
+    private readonly selector: SuggestionSelectorService,
+    private readonly dayPart: DayPartService,
+    private readonly stats: SuggestionStatsService,
   ) {}
 
   async getActiveSuggestions(
     rn: string,
     br: string,
     target: string,
-    screenContext = 'catalog',
+    screenContext: string = 'catalog',
+    options: SuggestionQueryOptions = {},
   ): Promise<SuggestionListItem[]> {
+    const context = normalizeScreenContext(screenContext);
     const now = new Date();
 
-    const suggestions = await this.db
+    const rows = await this.db
       .select()
       .from(assistantSuggestions)
       .where(
@@ -46,77 +72,85 @@ export class SuggestionService {
         ),
       );
 
-    const maxSuggestions = this.config.get<number>('MAX_SUGGESTIONS_ON_SCREEN') ?? 8;
-    const hideEmpty = this.config.get<boolean>('HIDE_EMPTY_SUGGESTIONS') ?? true;
+    const passed = rows.filter((row) => this.passesHardFilters(row, br, context, now));
+    if (!passed.length) return [];
 
-    const filtered: SuggestionListItem[] = [];
+    const eligible = await this.eligibility.eligibleIds(
+      passed.map((row) => ({
+        id: row.id,
+        payload: row.payload as any,
+        availabilityRules: row.availabilityRules as any,
+      })),
+      rn,
+      br,
+      target,
+    );
 
-    for (const s of suggestions) {
-      // Screen context filter
-      if (s.screenContext && s.screenContext !== screenContext) continue;
+    const candidates: SelectionCandidate[] = passed
+      .filter((row) => eligible.has(row.id))
+      .map((row) => {
+        const payload = row.payload as any;
 
-      // Period filter
-      if (s.activeFrom && s.activeFrom > now) continue;
-      if (s.activeTo && s.activeTo < now) continue;
+        return {
+          id: row.id,
+          code: row.code,
+          title: row.title,
+          sortOrder: row.sortOrder,
+          kind: resolveKind(payload),
+          scenario: payload?.slots?.scenario ?? null,
+        };
+      });
 
-      // Allowed br filter
-      const allowedBr = s.allowedBr as string[] | null;
-      if (allowedBr?.length && !allowedBr.includes(br)) continue;
+    if (!candidates.length) return [];
 
-      // Availability check
-      const availRules = s.availabilityRules as any;
-      if (availRules?.check_products_exist && hideEmpty) {
-        const hasProducts = await this.checkProductsExist(s, rn, br, target, availRules);
-        if (!hasProducts) continue;
-      }
+    const stats = this.stats ? await this.stats.forNetwork(rn, target) : null;
 
-      const payload = s.payload as any;
-      filtered.push({
-        id: s.id,
-        code: s.code,
-        title: s.title,
-        sort_order: s.sortOrder,
+    const selected = this.selector.select({
+      candidates,
+      stats,
+      limit: this.config?.get<number>('MAX_SUGGESTIONS_ON_SCREEN') ?? 6,
+      context,
+      // Without a session id the set is still valid, only not stable (FR-012a).
+      seed: options.sessionId ? `${options.sessionId}|${rn}|${br}|${target}` : randomUUID(),
+      currentDayPart: this.dayPart?.current(now) ?? null,
+      dayPartOf: this.dayPart ? (scenario) => this.dayPart.dayPartOf(scenario) : null,
+    });
+
+    const byId = new Map(passed.map((row) => [row.id, row]));
+
+    return selected.map((candidate) => {
+      const row = byId.get(candidate.id)!;
+      const payload = row.payload as any;
+
+      return {
+        id: row.id,
+        code: row.code,
+        title: row.title,
+        sort_order: row.sortOrder,
+        kind: candidate.kind,
         payload_preview: {
           intent: payload?.intent,
           category: payload?.slots?.category,
           tags: payload?.slots?.tags,
         },
-      });
-
-      if (filtered.length >= maxSuggestions) break;
-    }
-
-    return filtered.sort((a, b) => a.sort_order - b.sort_order);
+      };
+    });
   }
 
-  private async checkProductsExist(
-    suggestion: any,
-    rn: string,
+  private passesHardFilters(
+    row: typeof assistantSuggestions.$inferSelect,
     br: string,
-    target: string,
-    rules: any,
-  ): Promise<boolean> {
-    const payload = suggestion.payload as any;
-    const slots = payload?.slots ?? {};
+    context: ScreenContext,
+    now: Date,
+  ): boolean {
+    if (!matchesContext(row, context)) return false;
 
-    try {
-      // Same resolution as the answer path, otherwise presets carrying a category slug are
-      // hidden although the city has matching products.
-      const resolved = await this.categoryResolver.resolve(rn, target, slots.category);
+    if (row.activeFrom && row.activeFrom > now) return false;
+    if (row.activeTo && row.activeTo < now) return false;
 
-      const products = await this.catalogService.findByCity(rn, br, target, {
-        categoryIds: resolved.matched ? resolved.categoryIds : undefined,
-        categoryNames: resolved.matched ? resolved.categoryNames : undefined,
-        preferredIngredients: slots.preferred_ingredients,
-        excludedIngredients: slots.excluded_ingredients,
-        budgetMax: slots.budget_max ?? undefined,
-        spicy: slots.spicy ?? undefined,
-      });
+    const allowedBr = row.allowedBr as string[] | null;
+    if (allowedBr?.length && !allowedBr.includes(br)) return false;
 
-      const minCount = rules.min_products_count ?? 1;
-      return products.length >= minCount;
-    } catch {
-      return true; // If check fails, show suggestion anyway
-    }
+    return true;
   }
 }

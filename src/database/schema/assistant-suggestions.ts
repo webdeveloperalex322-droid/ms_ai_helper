@@ -22,6 +22,8 @@ export interface SuggestionPayload {
     people_count?: number | null;
     excluded_product_names?: string[];
     scenario?: string;
+    /** Upper calorie bound, in the unit the catalogue provider reports (spec 012). */
+    calories_max?: number | null;
   };
   retrieval_query: string;
 }
@@ -49,7 +51,13 @@ export const assistantSuggestions = pgTable(
     emoji: text('emoji'),
     enabled: boolean('enabled').notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(100),
+    /** @deprecated single context; kept as the fallback for `screenContexts`. */
     screenContext: text('screen_context').default('catalog'),
+    /**
+     * Screens the suggestion may appear on: catalog, cart, checkout, empty
+     * (spec 012). A non-empty array wins over `screenContext`.
+     */
+    screenContexts: jsonb('screen_contexts').$type<string[]>(),
     target: text('target').notNull().default('WEB'),
     activeFrom: timestamp('active_from'),
     activeTo: timestamp('active_to'),

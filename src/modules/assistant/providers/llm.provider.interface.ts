@@ -24,6 +24,8 @@ export interface IntentResult {
     scenario?: string;
     excluded_product_names?: string[];
     allergy_risk?: boolean;
+    /** Upper calorie bound, in the unit the catalogue provider reports (spec 012). */
+    calories_max?: number | null;
   };
   need_clarification: boolean;
   clarification_question?: string | null;

@@ -236,8 +236,26 @@ const configSchema = z.object({
   LLM_TIMEOUT_MS: z.coerce.number().default(6000),
   SESSION_TTL_MINUTES: z.coerce.number().default(60),
 
-  MAX_SUGGESTIONS_ON_SCREEN: z.coerce.number().default(8),
+  // Suggestion set selection (spec 012). The screen shows a short rotating set
+  // instead of the whole catalogue, so the default dropped from 8 to 6.
+  MAX_SUGGESTIONS_ON_SCREEN: z.coerce.number().default(6),
   HIDE_EMPTY_SUGGESTIONS: booleanFromEnv(true),
+  SUGGESTIONS_SERVICE_QUOTA_MIN: z.coerce.number().default(1),
+  SUGGESTIONS_SERVICE_QUOTA_MAX: z.coerce.number().default(2),
+  SUGGESTIONS_STATS_WINDOW_DAYS: z.coerce.number().default(30),
+  SUGGESTIONS_STATS_MIN_IMPRESSIONS: z.coerce.number().default(50),
+  SUGGESTIONS_CTR_WEIGHT: z.coerce.number().default(2.0),
+  SUGGESTIONS_EXPLORATION_BONUS: z.coerce.number().default(0.15),
+  SUGGESTIONS_DAYPART_BOOST: z.coerce.number().default(1.5),
+  SUGGESTIONS_CONTEXT_BOOST: z.coerce.number().default(2.0),
+  // `cities` carries no timezone, so the day part is computed for the network
+  // as a whole. Tyumen (the first city live) is UTC+5.
+  SUGGESTIONS_TIMEZONE: z.string().default('Asia/Yekaterinburg'),
+  // Daily windows as [startHour, endHour); an interval crossing midnight
+  // (23 → 5) is handled as one continuous stretch.
+  SUGGESTIONS_DAYPART_WINDOWS: z
+    .string()
+    .default('{"lunch":[11,16],"evening":[17,23],"night":[23,5]}'),
 
   INTERNAL_API_KEY: z.string().default('dev-internal-key-change-in-prod'),
 
